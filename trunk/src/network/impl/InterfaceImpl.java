@@ -57,8 +57,6 @@ final class InterfaceImpl extends SimulationObject<Interface>
             
             this.left = left;
             this.right = right;
-            
-            connect();
         }
         
         private void connect() {
