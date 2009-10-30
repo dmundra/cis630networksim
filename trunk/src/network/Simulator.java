@@ -34,6 +34,8 @@ public interface Simulator {
     Kernel createRouterKernel();
     UserKernel createUserKernel();
     
+    void start();
+    
     Logger logger();
     
     interface NodeBuilder {

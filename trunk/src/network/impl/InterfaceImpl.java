@@ -86,8 +86,8 @@ final class InterfaceImpl extends SimulationObject<Interface>
             }
             
             
-            left.node.markUnused(left);
-            right.node.markUnused(right);
+            left.node.disconnected(left);
+            right.node.disconnected(right);
         }
     }
     
