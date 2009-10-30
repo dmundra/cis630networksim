@@ -45,12 +45,23 @@ class NodeImpl extends SimulationObject<Node> implements Node {
         return new InterfaceImpl(this);
     }
     
-    synchronized int register(InterfaceImpl iface) {
-        interfaces.add(iface);
-        return interfaces.size() - 1;
+    int register(InterfaceImpl iface) {
+        final int ix;
+        synchronized (this) {
+            interfaces.add(iface);
+            ix = interfaces.size() - 1;
+        }
+        
+        kernel.interfaceAdded(iface);
+        return ix;
     }
     
-    void markUnused(InterfaceImpl iface) {
+    void connected(InterfaceImpl iface) {
+        kernel.interfaceConnected(iface);
+    }
+    
+    void disconnected(InterfaceImpl iface) {
+        kernel.interfaceDisconnected(iface);
         unusedInterfaces.add(iface);
     }
     

@@ -85,6 +85,10 @@ class SimulatorImpl implements Simulator {
         return null;
     }
     
+    public void start() {
+        // TODO Implement
+    }
+    
     public Logger logger() {
         return Logger.getLogger("network.Simulator");
     }
