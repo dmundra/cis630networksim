@@ -2,6 +2,10 @@ package network.impl.kernel;
 
 import java.io.Serializable;
 
+/**
+ * Each Kernel has a Node which contains the address data, no of hops, link.
+ * @author Anthony Wittig
+ */
 public class Node implements Serializable {
 
 	private static final long serialVersionUID = 1L;
