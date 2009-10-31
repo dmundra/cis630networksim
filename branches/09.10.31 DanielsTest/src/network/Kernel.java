@@ -13,12 +13,20 @@ package network;
  * @author Luke Maurer
  */
 public interface Kernel {
+    void setAddress(int address);
+    void setName(String name);
+    
     void interfaceAdded(Interface iface);
-    void interfaceConnected(Interface iface, int peerAddress);
-    void interfaceDisconnected(Interface iface, int peerAddress);
+    void interfaceConnected(Interface iface);
+    void interfaceDisconnected(Interface iface);
     
     /**
-     * Boot up the system. Will be run from a fresh thread.
+     * Boot up the system. Should spawn its own thread(s).
      */
     void start();
+    
+    /**
+     * Shut down the system. Should return immediately.
+     */
+    void shutDown();
 }

@@ -1,7 +1,7 @@
 package network;
 
 public enum KnownPort {
-    RESERVED, RIP, HTTP;
+    RESERVED, RIP, HTTP, KERNEL_WHO;
     
     public static void formatPort(int portNum, StringBuilder out) {
         final KnownPort[] all = KnownPort.values();
