@@ -13,6 +13,9 @@ package network;
  * @author Luke Maurer
  */
 public interface Kernel {
+    void setAddress(int address);
+    void setName(String name);
+    
     void interfaceAdded(Interface iface);
     void interfaceConnected(Interface iface);
     void interfaceDisconnected(Interface iface);
