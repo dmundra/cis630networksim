@@ -1,13 +1,13 @@
 package test;
 
+import network.AbstractKernel;
 import network.Interface;
-import network.Kernel;
 import network.Node;
 import network.Simulator;
 import network.SimulatorFactory;
 
 class SimpleTestRun {
-    private static class TrivialKernel implements Kernel {
+    private static class TrivialKernel extends AbstractKernel {
         public void interfaceAdded(Interface iface) { }
         public void interfaceConnected(Interface iface) { }
         public void interfaceDisconnected(Interface iface) { }
