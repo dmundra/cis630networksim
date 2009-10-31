@@ -16,14 +16,14 @@ public final class Message<T extends Serializable> implements Serializable {
     }
     
     @SuppressWarnings("unchecked")
-    public <U extends T> Message<U> asType(Class<U> clazz) {
+    public <U extends Serializable> Message<U> asType(Class<U> clazz) {
         // Throw exception if wrong class
         clazz.cast(data);
         
         return (Message<U>) this;
     }
     
-    public <U extends T> U dataAs(Class<U> clazz) {
+    public <U extends Serializable> U dataAs(Class<U> clazz) {
         return clazz.cast(data);
     }
     
