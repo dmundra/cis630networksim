@@ -2,7 +2,7 @@ package network;
 import java.util.List;
 
 /**
- * A machine on the network. Maybe either a router or a leaf node.
+ * A machine on the network. May be either a router or a leaf node.
  * 
  * @see Simulator#buildNode()
  *

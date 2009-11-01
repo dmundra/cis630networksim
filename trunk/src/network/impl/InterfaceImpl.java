@@ -8,9 +8,11 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import network.Interface;
 import network.Message;
+import network.NodeNotRunningException;
 
 final class InterfaceImpl extends SimulationObject<Interface>
         implements Interface {
@@ -29,12 +31,17 @@ final class InterfaceImpl extends SimulationObject<Interface>
         
     void disconnect() {
         wire.disconnect();
+        queue.clear();
     }   
     
-    InterfaceImpl(NodeImpl node) {
+    interface NewInterfaceCallback {
+        int registerInterface(InterfaceImpl iface);
+    }
+
+    InterfaceImpl(NodeImpl node, InterfaceImpl.NewInterfaceCallback callback) {
         super(node.sim);
         this.node = node;
-        this.index = node.register(this);
+        this.index = callback.registerInterface(this);
     }
     
     /**
@@ -60,6 +67,9 @@ final class InterfaceImpl extends SimulationObject<Interface>
         }
         
         private void connect() {
+            if (left.node.shuttingDown() || right.node.shuttingDown())
+                throw new IllegalStateException("Node shutting down");
+            
             synchronized(left) {
                 synchronized(right) {
                     if (left.wire != null || right.wire != null)
@@ -85,14 +95,16 @@ final class InterfaceImpl extends SimulationObject<Interface>
                 }
             }
             
-            
             left.node.disconnected(left);
             right.node.disconnected(right);
         }
     }
-    
+
     public void send(Message<?> message) throws DisconnectedException,
             InterruptedException {
+        if (!node.running())
+            throw new NodeNotRunningException(node);
+        
         final InterfaceImpl peer = this.peer;
         if (peer == null)
             throw new DisconnectedException();
@@ -109,7 +121,21 @@ final class InterfaceImpl extends SimulationObject<Interface>
     }
     
     public Message<?> receive() throws InterruptedException {
-        final byte[] data = queue.take();
+        return receive(-1, null);
+    }
+    
+    public Message<?> receive(long timeout, TimeUnit unit) throws InterruptedException {
+        if (!node.running())
+            throw new NodeNotRunningException(node);
+        
+        final byte[] data;
+        if (unit != null)
+            data = queue.poll(timeout, unit);
+        else
+            data = queue.take();
+        
+        if (data == null)
+            return null;
         
         final Message<?> message;
         try {

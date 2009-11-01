@@ -6,7 +6,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import network.Interface;
 import network.Kernel;
 import network.Node;
 
@@ -18,6 +17,11 @@ class NodeImpl extends SimulationObject<Node> implements Node {
         new CopyOnWriteArrayList<InterfaceImpl>();
     private final BlockingQueue<InterfaceImpl> unusedInterfaces =
         new LinkedBlockingQueue<InterfaceImpl>();
+    private final ThreadGroup threadGroup;
+    private final MainThread thread;
+    
+    private volatile boolean running;
+    private volatile boolean shuttingDown;
     
     NodeImpl(SimulatorImpl sim, int address, String name,
             Kernel kernel, List<NodeImpl> neighbors) {
@@ -25,7 +29,9 @@ class NodeImpl extends SimulationObject<Node> implements Node {
 
         this.address = address;
         this.name = name;
-        this.kernel = kernel;
+        this.threadGroup = new ThreadGroup(name);
+        this.thread = this.new MainThread();
+        this.kernel = kernel != null ? kernel : sim.createRouterKernel();
         
         for (NodeImpl node : neighbors)
             connectTo(node);
@@ -42,18 +48,21 @@ class NodeImpl extends SimulationObject<Node> implements Node {
         if (unused != null)
             return unused;
         
-        return new InterfaceImpl(this);
-    }
-    
-    int register(InterfaceImpl iface) {
-        final int ix;
+        final InterfaceImpl ans;
         synchronized (this) {
-            interfaces.add(iface);
-            ix = interfaces.size() - 1;
+            ans = shuttingDown ? null : new InterfaceImpl(this,
+                new InterfaceImpl.NewInterfaceCallback() {
+                    public int registerInterface(InterfaceImpl iface) { 
+                        interfaces.add(iface);
+                        return interfaces.size() - 1;
+                    }
+                });
         }
         
-        kernel.interfaceAdded(iface);
-        return ix;
+        if (ans != null)
+            kernel.interfaceAdded(ans);
+        
+        return ans;
     }
     
     void connected(InterfaceImpl iface) {
@@ -65,6 +74,51 @@ class NodeImpl extends SimulationObject<Node> implements Node {
         unusedInterfaces.add(iface);
     }
     
+    void startUp() {
+        thread.start();
+    }
+    
+    class MainThread extends Thread {
+        private static final String NAME = "Main";
+        
+        MainThread() {
+            super(threadGroup, NAME);
+        }
+        
+        public void run() {
+            running = true;
+            kernel.start();
+        }
+    }
+    
+    boolean running() {
+        return running;
+    }
+    
+    boolean shuttingDown() {
+        return shuttingDown;
+    }
+    
+    void shutDown() {
+        shuttingDown = true;
+        
+        // No interfaces are allowed to be added now, so this is safe
+        for (InterfaceImpl iface : interfaces)
+            iface.disconnect();
+        
+        kernel.shutDown();
+        try {
+            // Wait until the main thread finishes
+            thread.join();
+            threadGroup.destroy();
+            running = false;
+        } catch (InterruptedException e) {
+            // TODO Should probably log a warning
+        }
+        
+        shuttingDown = false;
+    }
+    
     public int address() {
         return address;
     }
@@ -73,7 +127,7 @@ class NodeImpl extends SimulationObject<Node> implements Node {
         return name;
     }
     
-    public List<? extends Interface> interfaces() {
+    public List<? extends InterfaceImpl> interfaces() {
         return Collections.unmodifiableList(interfaces);
     }
     

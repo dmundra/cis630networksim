@@ -3,12 +3,21 @@ package network;
 public enum KnownPort {
     RESERVED, RIP, HTTP, KERNEL_WHO;
     
-    public static void formatPort(int portNum, StringBuilder out) {
+    public int number() {
+        return ordinal();
+    }
+    
+    public static KnownPort withNumber(int number) {
         final KnownPort[] all = KnownPort.values();
-        if (portNum < 0 || portNum > all.length)
-            out.append(portNum);
+        if (number < 0 || number > all.length)
+            return null;
         else
-            out.append(all[portNum]);
+            return all[number];
+    }
+    
+    public static void formatPort(int portNum, StringBuilder out) {
+        final KnownPort port = withNumber(portNum);
+        out.append(port == null ? portNum : port);
     }
     
     public static String formatPort(int portNum) {
