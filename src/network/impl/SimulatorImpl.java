@@ -18,6 +18,7 @@ class SimulatorImpl implements Simulator {
     private AtomicInteger nextAddress = new AtomicInteger(1);
     private ConcurrentMap<Integer, NodeImpl> nodes =
         new ConcurrentHashMap<Integer, NodeImpl>();
+    private volatile boolean started;
     
     public NodeBuilder buildNode() {
         return new NodeBuilder() {
@@ -50,15 +51,22 @@ class SimulatorImpl implements Simulator {
                 final NodeImpl node =
                     new NodeImpl(
                             SimulatorImpl.this, address, name, kernel, neighbors);
-                nodes.put(address, node);
+                
+                synchronized (SimulatorImpl.this) {
+                    nodes.put(address, node);
+                    if (started)
+                        node.startUp();
+                }
+                
                 return node;
             }
         };
     }
     
     public void destroy(Node node) {
-        // TODO ?? Could be tricky to do concurrently ...
-        throw new UnsupportedOperationException();
+        final NodeImpl nodeImpl = checkOwnership(node);
+        nodeImpl.shutDown();
+        nodes.remove(nodeImpl.address());
     }
     
     public Node nodeAt(int address) {
@@ -85,8 +93,10 @@ class SimulatorImpl implements Simulator {
         return null;
     }
     
-    public void start() {
-        // TODO Implement
+    public synchronized void start() {
+        started = true;
+        for (NodeImpl node : nodes.values())
+            node.startUp();
     }
     
     public Logger logger() {
