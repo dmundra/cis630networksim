@@ -1,12 +1,15 @@
 package test;
 
+import static org.testng.Assert.assertNotNull;
 import network.AbstractKernel;
 import network.Interface;
 import network.Node;
 import network.Simulator;
 import network.SimulatorFactory;
 
-class SimpleTestRun {
+import org.testng.annotations.Test;
+
+public class SimpleTestRun {
     private static class TrivialKernel extends AbstractKernel {
         public void interfaceAdded(Interface iface) { }
         public void interfaceConnected(Interface iface) { }
@@ -16,9 +19,11 @@ class SimpleTestRun {
         public void shutDown() { }
     }
     
-    public static void main(String ... args) {
+    @Test
+    public void test1() {
         // Get a simulator
         final Simulator sim = SimulatorFactory.instance().createSimulator();
+        assertNotNull(sim);
         
         // Build a bunch of nodes
         final Node
@@ -29,12 +34,21 @@ class SimpleTestRun {
             e = sim.buildNode().kernel(new TrivialKernel()).name("E").create(),
             f = sim.buildNode().kernel(new TrivialKernel()).name("F").create();
         
+        assertNotNull(a);
+        assertNotNull(b);
+        assertNotNull(c);
+        assertNotNull(d);
+        assertNotNull(e);
+        assertNotNull(f);
+        
         final Node router1 =
             sim.buildNode()
                 .kernel(new TrivialKernel())
                 .name("Router1")
                 .connections(a, b, c)
                 .create();
+        
+        assertNotNull(router1);
         
         final Node router2 =
             sim.buildNode()
@@ -43,10 +57,16 @@ class SimpleTestRun {
                 .connections(router1, d, e, f)
                 .create();
         
+        assertNotNull(router2);
+        
         // Now, um ... do something?
-        for (Interface iface : router1.interfaces())
+        for (Interface iface : router1.interfaces()) {
             System.out.println(iface);
-        for (Interface iface : router2.interfaces())
+            assertNotNull(iface);
+        }
+        for (Interface iface : router2.interfaces()) {
             System.out.println(iface);
+            assertNotNull(iface);
+        }
     }
 }
