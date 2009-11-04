@@ -69,4 +69,8 @@ public class SimpleTestRun {
             assertNotNull(iface);
         }
     }
+    
+    public static void main(String args[]) {
+    	new SimpleTestRun().test1();
+    }
 }
