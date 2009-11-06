@@ -110,6 +110,7 @@ public class KernelImpl extends AbstractKernel {
 					for(Map.Entry<Integer, Node> pair : n.getRoutingTable().entrySet()){
 						Node toAdd = pair.getValue().clone();
 						toAdd.setCost(toAdd.getCost() + 1);
+						toAdd.setLink(n.getLink());
 						//see if the address is in our table:
 						if(routingTableNew.containsKey(pair.getKey())){
 							//the address is already here, so see if we are better:
