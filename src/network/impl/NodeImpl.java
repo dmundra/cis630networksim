@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Logger;
 
 import network.Kernel;
 import network.Node;
@@ -19,6 +20,7 @@ class NodeImpl extends SimulationObject<Node> implements Node {
         new LinkedBlockingQueue<InterfaceImpl>();
     private final ThreadGroup threadGroup;
     private final MainThread thread;
+    private final Logger kernelLogger, logger;
     
     private volatile boolean running;
     private volatile boolean shuttingDown;
@@ -32,6 +34,9 @@ class NodeImpl extends SimulationObject<Node> implements Node {
         this.threadGroup = new ThreadGroup(name);
         this.thread = this.new MainThread();
         this.kernel = kernel != null ? kernel : sim.createRouterKernel();
+        
+        this.logger = Logger.getLogger("network.Node.[" + this + "]");
+        this.kernelLogger = Logger.getLogger("network.Kernel.[" + this + "]");
         
         for (NodeImpl node : neighbors)
             connectTo(node);
@@ -87,7 +92,21 @@ class NodeImpl extends SimulationObject<Node> implements Node {
         
         public void run() {
             running = true;
-            kernel.start();
+
+            kernel.setAddress(address);
+            kernel.setName(name);
+            kernel.setLogger(kernelLogger);
+            try {
+                kernel.start();
+            } catch (InterruptedException e) {
+                // Do nothing; we're shutting down as intended
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Error e) {
+                throw e;
+            } catch (Exception e) {
+                this.getUncaughtExceptionHandler().uncaughtException(this, e);
+            }
         }
     }
     
@@ -113,7 +132,7 @@ class NodeImpl extends SimulationObject<Node> implements Node {
             threadGroup.destroy();
             running = false;
         } catch (InterruptedException e) {
-            // TODO Should probably log a warning
+            logger.warning("Interrupted during shutdown");
         }
         
         shuttingDown = false;

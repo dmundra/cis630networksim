@@ -1,5 +1,7 @@
 package network;
 
+import java.util.logging.Logger;
+
 /**
  * Logic responsible for handling routing and messaging for a single node.
  * <p>
@@ -39,6 +41,27 @@ public interface Kernel {
     void setName(String name);
     
     /**
+     * Set the logger the node can use. Will be called once <em>before</em>
+     * {@link #start()}.
+     * 
+     * @param logger The logger for this node to use.
+     * 
+     * @see OperatingSystem#logger()
+     * @see Simulator#logger()
+     * @see java.util.logging
+     */
+    void setLogger(Logger logger);
+    
+    /**
+     * Set the thread in which {@link #start()} will be run. Will be called
+     * once <em>before</em> {@link #start()}; the thread may or not yet be
+     * running.
+     * 
+     * @param thread
+     */
+    void setMainThread(Thread thread);
+    
+    /**
      * Handle a new interface. The interface will not yet be connected at the
      * time this is called, though it may become connected immediately after.
      * 
@@ -64,7 +87,7 @@ public interface Kernel {
     /**
      * Boot up the system. Will be called from a new thread.
      */
-    void start();
+    void start() throws Exception;
     
     /**
      * Shut down the system. When this method returns, any extra threads
