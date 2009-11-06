@@ -55,8 +55,8 @@ public class KernelImpl extends AbstractKernel {
 		public void run() {
 			for(Interface i : interfaceList) {
 				try {
-					Node kernelNode = new Node(getAddress());
-					Message<Node> findNeighbors = new Message<Node>(getAddress(), 255, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), kernelNode);
+					Node kernelNode = new Node(address());
+					Message<Node> findNeighbors = new Message<Node>(address(), 255, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), kernelNode);
 					i.send(findNeighbors);				
 					
 				} catch (DisconnectedException e) {
