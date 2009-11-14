@@ -4,7 +4,6 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import network.AbstractKernel;
 import network.Interface;
@@ -59,11 +58,10 @@ public class KernelImpl extends AbstractKernel {
 
 	@Override
 	public void start() {
-		while (true) {
-			// Runs the RIP algorithm every 50 seconds for now.
-			Timer checkNeighbors = new Timer("checkNeighbors");
-			checkNeighbors.schedule(new RIPTask(), 10000);
-		}
+		// Runs the RIP algorithm every 50 seconds for now.
+		Timer checkNeighbors = new Timer("checkNeighbors");
+		checkNeighbors.schedule(new RIPTask(), 2000, 1000);
+		checkNeighbors.schedule(new CheckMessages(), 4000, 1000);
 	}
 
 	/**
@@ -110,8 +108,8 @@ public class KernelImpl extends AbstractKernel {
 		public void run() {
 			for (Interface i : interfaceList.keySet()) {
 				try {
-					if(isDebug) System.out.println("rip task on interface: " + i);
 					KernelNode kernelNode = new KernelNode(address());
+					kernelNode.setRoutingTable(routingTable);
 					Message<KernelNode> findNeighbors = new Message<KernelNode>(
 							address(), 255, KnownPort.KERNEL_WHO.ordinal(),
 							KnownPort.KERNEL_WHO.ordinal(), kernelNode);
@@ -126,60 +124,88 @@ public class KernelImpl extends AbstractKernel {
 				}
 			}
 
-			// we want to make a new routing table that will replace our current
-			// when we are done:
-			ConcurrentHashMap<Integer, KernelNode> routingTableNew = new ConcurrentHashMap<Integer, KernelNode>();
-
+			
+			//see if anyone sent us a back their info
 			for (Map.Entry<Integer, Message<KernelNode>> pair : toRoute
 					.entrySet()) {
+				
 
 				// Message<KernelNode> recievedMessage =
 				// pair.getKey().receive().asType(KernelNode.class);
-				KernelNode neighbor = pair.getValue().data.clone();
+				KernelNode neighbor = pair.getValue().data.partialClone();
 				neighbor.setCost(1);
 				neighbor.setLink(pair.getKey());
-				routingTableNew.put(pair.getValue().source, neighbor);
+				//replace current info:
+				routingTable.put(pair.getValue().source, neighbor);
+				
+				//now see if our updated node has any information that is better than what we have:
+				for(Map.Entry<Integer, KernelNode> sub : pair.getValue().data.getRoutingTable().entrySet()){
+					
+					checkAndAdd(sub, pair.getValue().source);
+				}
+				
+				
 
 			}
+			
+			
 
-			// now let's fix up our routing table:
-			for (boolean madeChanges = true; madeChanges;) {
-				madeChanges = false;
+			String toPrint = (name() + "- Check routing table:");
+			
+			for (Map.Entry<Integer, KernelNode> pair : routingTable.entrySet()) {
+				toPrint += ("\n\tName:" + pair.getValue().getAddress() + " Size:" + pair.getValue().getRoutingTable().size());
+			}
+			
+			if(isDebug && name().equals("15")) System.out.println(toPrint);
 
-				for (KernelNode n : routingTableNew.values()) {
-					// see if the node has a routing table
-					for (Map.Entry<Integer, KernelNode> pair : n
-							.getRoutingTable().entrySet()) {
-						KernelNode toAdd = pair.getValue().clone();
-						toAdd.setCost(toAdd.getCost() + 1);
-						toAdd.setLink(n.getLink());
-						// see if the address is in our table:
-						if (routingTableNew.containsKey(pair.getKey())) {
-							// the address is already here, so see if we are
-							// better:
-							if (routingTableNew.get(pair.getKey()).getCost() > toAdd
-									.getCost()) {
-								// looks like we have a better way to get there:
-								routingTableNew.replace(pair.getKey(), toAdd);
-								// don't think we should set madeChanges = true;
-							}
-						} else {
-							// see if the address is not us:
-							if (address() != pair.getKey()) {
-								// this might throw exception at runtime... I
-								// think that concurrentHashMap can do this
-								// though
-								routingTableNew.put(pair.getKey(), toAdd);
-								madeChanges = true;
-							}
-						}
-					}
+		}
+		
+		/**
+		 * checks to see if the information should be added to our routing table
+		 * @param toAdd the info to check (and add if needed)
+		 */
+		private void checkAndAdd(Map.Entry<Integer, KernelNode> info, int link){
+//			KernelNode toAdd = info.getValue().clone();
+//			toAdd.setCost(toAdd.getCost() + 1);
+//			toAdd.setLink(link);
+			
+			
+			boolean checkNewGuy = false;
+			// see if the address is in our table:
+			if (routingTable.containsKey(info.getKey())) {
+				// the address is already here, so see if we are
+				// better:
+				if (routingTable.get(info.getKey()).getCost() > info.getValue()
+						.getCost()) {
+					// looks like we have a better way to get there:
+					KernelNode toAdd = info.getValue().partialClone();
+					toAdd.setCost(toAdd.getCost() + 1);
+					toAdd.setLink(link);
+					routingTable.replace(info.getKey(), toAdd);
+					checkNewGuy = true;
+				}
+			} else {
+				// see if the address is not us:
+				if (address() != info.getKey()) {
+					//if(isDebug) System.err.println(name() + " address, adding address == (" + address() + ", " + info.getKey() + ")");
+					// this might throw exception at runtime... I
+					// think that concurrentHashMap can do this
+					// though
+					KernelNode toAdd = info.getValue().partialClone();
+					toAdd.setCost(toAdd.getCost() + 1);
+					toAdd.setLink(link);
+					routingTable.put(info.getKey(), toAdd);
+					checkNewGuy = true;
+					if(isDebug && name().equals("15") && info.getKey() == (17)) System.out.println("Debug- " + info.getKey() + " : " + info.getValue().getRoutingTable().toString());
 				}
 			}
-
-			// now start using our new routing table:
-			routingTable = routingTableNew;
-
+			
+			if(checkNewGuy){
+				for(Map.Entry<Integer, KernelNode> info2 : info.getValue().getRoutingTable().entrySet()){
+					
+					checkAndAdd(info2, link);
+				}
+			}
 		}
 	}
 }

@@ -1,5 +1,6 @@
 package test;
 
+import java.util.ArrayList;
 import java.util.Random;
 
 import network.Node;
@@ -18,16 +19,35 @@ public class KernelImplTest {
     public void test() {
         final Simulator sim = SimulatorFactory.instance().createSimulator();
         
-        final Node a = sim.buildNode()
-            .name("A")
-            .kernel(new KernelImpl())
-            .create();
+        ArrayList<Node> lst = new ArrayList<Node>();
         
-        final Node b = sim.buildNode()
-            .name("B")
+        final Node a = sim.buildNode()
+            .name("1")
             .kernel(new KernelImpl())
-            .connections(a)
             .create();
+//        
+//        final Node b = sim.buildNode()
+//            .name("B")
+//            .kernel(new KernelImpl())
+//            .connections(a)
+//            .create();
+//        
+//        final Node c = sim.buildNode()
+//        .name("C")
+//        .kernel(new KernelImpl())
+//        .connections(a)
+//        .create();
+        
+        lst.add(a);
+        
+        for(int i = 1; i <= 50; i++) {
+            final Node temp = sim.buildNode()
+            .name("" + (i+1))
+            .kernel(new KernelImpl())
+            .connections(lst.get(i-1))
+            .create();
+            lst.add(temp);
+        }
         
         //((CountingKernel) a.kernel()).first = true;
         
@@ -38,5 +58,9 @@ public class KernelImplTest {
         } catch (InterruptedException e) {
             return;
         }
+    }
+    
+    public static void main(String args[]) {
+    	new KernelImplTest().test();
     }
 }

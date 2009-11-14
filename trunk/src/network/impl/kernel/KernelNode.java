@@ -1,7 +1,7 @@
 package network.impl.kernel;
 
 import java.io.Serializable;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Each Kernel has a Node which contains the address data, no of hops, link.
@@ -9,13 +9,13 @@ import java.util.HashMap;
 public class KernelNode implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-	private HashMap<Integer, KernelNode> routingTable = new HashMap<Integer, KernelNode>(); 
+	private ConcurrentHashMap<Integer, KernelNode> routingTable = new ConcurrentHashMap<Integer, KernelNode>(); 
 
-	public HashMap<Integer, KernelNode> getRoutingTable() {
+	public ConcurrentHashMap<Integer, KernelNode> getRoutingTable() {
 		return routingTable;
 	}
 
-	public void setRoutingTable(HashMap<Integer, KernelNode> routingTable) {
+	public void setRoutingTable(ConcurrentHashMap<Integer, KernelNode> routingTable) {
 		this.routingTable = routingTable;
 	}
 
@@ -51,9 +51,7 @@ public class KernelNode implements Serializable {
 	 */
 	@Override
 	public KernelNode clone(){
-		KernelNode clone = new KernelNode(address);
-		clone.cost = cost;
-		clone.link = link;
+		KernelNode clone = partialClone();
 		clone.routingTable = routingTable;
 		return clone;
 	}
@@ -76,6 +74,17 @@ public class KernelNode implements Serializable {
 
 	public int getAddress() {
 		return address;
+	}
+	
+	public String toString()	{
+		return "KernelNode: \n address:" + address + "\n cost:" + cost + "\n link:" + link + "\n routing table:" + routingTable.toString();
+	}
+
+	public KernelNode partialClone() {
+		KernelNode clone = new KernelNode(address);
+		clone.cost = cost;
+		clone.link = link;
+		return clone;
 	}
 	
 }
