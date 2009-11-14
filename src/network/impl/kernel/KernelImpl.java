@@ -15,7 +15,7 @@ public class KernelImpl extends AbstractKernel {
 
 	/**this is a map of our interface to unique integer*/
 	private ConcurrentHashMap<Interface, Integer> interfaceList = new ConcurrentHashMap<Interface, Integer>();
-	private ConcurrentHashMap<Integer, Node> routingTable = new ConcurrentHashMap<Integer, Node>();
+	private ConcurrentHashMap<Integer, KernelNode> routingTable = new ConcurrentHashMap<Integer, KernelNode>();
 	
 	@Override
 	public void interfaceAdded(Interface iface) {
@@ -69,8 +69,8 @@ public class KernelImpl extends AbstractKernel {
 		public void run() {
 			for(Interface i : interfaceList.keySet()) {
 				try {
-					Node kernelNode = new Node(address());
-					Message<Node> findNeighbors = new Message<Node>(address(), 255, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), kernelNode);
+					KernelNode kernelNode = new KernelNode(address());
+					Message<KernelNode> findNeighbors = new Message<KernelNode>(address(), 255, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), kernelNode);
 					i.send(findNeighbors);				
 					
 				} catch (DisconnectedException e) {
@@ -83,13 +83,13 @@ public class KernelImpl extends AbstractKernel {
 			}
 			
 			//we want to make a new routing table that will replace our current when we are done:
-			ConcurrentHashMap<Integer, Node> routingTableNew = new ConcurrentHashMap<Integer, Node>();
+			ConcurrentHashMap<Integer, KernelNode> routingTableNew = new ConcurrentHashMap<Integer, KernelNode>();
 			
 			for(Map.Entry<Interface, Integer> pair : interfaceList.entrySet()) {
 				try {
 					//TODO: do our normal work if it isn't a rip message...
-					Message<Node> recievedMessage = pair.getKey().receive().asType(Node.class);
-					Node neighbor = recievedMessage.data.clone();
+					Message<KernelNode> recievedMessage = pair.getKey().receive().asType(KernelNode.class);
+					KernelNode neighbor = recievedMessage.data.clone();
 					neighbor.setCost(1);
 					neighbor.setLink(pair.getValue());
 					routingTableNew.put(recievedMessage.source, neighbor);
@@ -105,10 +105,10 @@ public class KernelImpl extends AbstractKernel {
 			for(boolean madeChanges = true; madeChanges; ){
 				madeChanges = false;
 				
-				for(Node n : routingTableNew.values()){
+				for(KernelNode n : routingTableNew.values()){
 					//see if the node has a routing table 
-					for(Map.Entry<Integer, Node> pair : n.getRoutingTable().entrySet()){
-						Node toAdd = pair.getValue().clone();
+					for(Map.Entry<Integer, KernelNode> pair : n.getRoutingTable().entrySet()){
+						KernelNode toAdd = pair.getValue().clone();
 						toAdd.setCost(toAdd.getCost() + 1);
 						toAdd.setLink(n.getLink());
 						//see if the address is in our table:
