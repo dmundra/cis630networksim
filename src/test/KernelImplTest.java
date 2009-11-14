@@ -40,11 +40,13 @@ public class KernelImplTest {
         
         lst.add(a);
         
-        for(int i = 1; i <= 50; i++) {
+        Random r = new Random();
+        
+        for(int i = 1; i <= 500; i++) {
             final Node temp = sim.buildNode()
             .name("" + (i+1))
             .kernel(new KernelImpl())
-            .connections(lst.get(i-1))
+            .connections(lst.get(r.nextInt(i))/*lst.get(i-1)*/)
             .create();
             lst.add(temp);
         }

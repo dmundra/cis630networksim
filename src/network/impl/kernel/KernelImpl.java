@@ -127,8 +127,7 @@ public class KernelImpl extends AbstractKernel {
 			
 			//see if anyone sent us a back their info
 			for (Map.Entry<Integer, Message<KernelNode>> pair : toRoute
-					.entrySet()) {
-				
+					.entrySet()) {				
 
 				// Message<KernelNode> recievedMessage =
 				// pair.getKey().receive().asType(KernelNode.class);
@@ -142,13 +141,9 @@ public class KernelImpl extends AbstractKernel {
 				for(Map.Entry<Integer, KernelNode> sub : pair.getValue().data.getRoutingTable().entrySet()){
 					
 					checkAndAdd(sub, pair.getValue().source);
-				}
-				
-				
+				}				
 
-			}
-			
-			
+			}			
 
 			String toPrint = (name() + "- Check routing table:");
 			
@@ -196,7 +191,7 @@ public class KernelImpl extends AbstractKernel {
 					toAdd.setLink(link);
 					routingTable.put(info.getKey(), toAdd);
 					checkNewGuy = true;
-					if(isDebug && name().equals("15") && info.getKey() == (17)) System.out.println("Debug- " + info.getKey() + " : " + info.getValue().getRoutingTable().toString());
+					//if(isDebug && name().equals("15") && info.getKey() == (18)) System.out.println("Debug- " + info.getKey() + " : " + info.getValue().getRoutingTable().toString());
 				}
 			}
 			
