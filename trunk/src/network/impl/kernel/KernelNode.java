@@ -6,16 +6,16 @@ import java.util.HashMap;
 /**
  * Each Kernel has a Node which contains the address data, no of hops, link.
  */
-public class Node implements Serializable {
+public class KernelNode implements Serializable {
 
 	private static final long serialVersionUID = 1L;
-	private HashMap<Integer, Node> routingTable = new HashMap<Integer, Node>(); 
+	private HashMap<Integer, KernelNode> routingTable = new HashMap<Integer, KernelNode>(); 
 
-	public HashMap<Integer, Node> getRoutingTable() {
+	public HashMap<Integer, KernelNode> getRoutingTable() {
 		return routingTable;
 	}
 
-	public void setRoutingTable(HashMap<Integer, Node> routingTable) {
+	public void setRoutingTable(HashMap<Integer, KernelNode> routingTable) {
 		this.routingTable = routingTable;
 	}
 
@@ -38,7 +38,7 @@ public class Node implements Serializable {
 	 * We'll take in the address we are interested in.
 	 * @param address is the address this entry is interested in.
 	 */
-	public Node(int address) {
+	public KernelNode(int address) {
 		this.address = address;
 		this.cost = 0;
 		this.link = -1;
@@ -50,8 +50,8 @@ public class Node implements Serializable {
 	 * @return a shallow copy
 	 */
 	@Override
-	public Node clone(){
-		Node clone = new Node(address);
+	public KernelNode clone(){
+		KernelNode clone = new KernelNode(address);
 		clone.cost = cost;
 		clone.link = link;
 		clone.routingTable = routingTable;
