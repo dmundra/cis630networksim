@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Formatter;
+import java.util.logging.Handler;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import network.Interface;
@@ -12,6 +15,7 @@ import network.Kernel;
 import network.Node;
 import network.Simulator;
 import network.UserKernel;
+import network.impl.kernel.KernelImpl;
 
 class SimulatorImpl implements Simulator {
     private AtomicInteger autoNodeNameIx = new AtomicInteger();
@@ -19,6 +23,18 @@ class SimulatorImpl implements Simulator {
     private ConcurrentMap<Integer, NodeImpl> nodes =
         new ConcurrentHashMap<Integer, NodeImpl>();
     private volatile boolean started;
+    
+    private static final Logger log;
+    
+    static {
+        final Logger rootLog = Logger.getLogger("");
+        final Formatter formatter = new OutputFormatter();
+        
+        for (Handler handler : rootLog.getHandlers())
+            handler.setFormatter(formatter);
+        
+        log = Logger.getLogger("network.Simulator");
+    }
     
     public NodeBuilder buildNode() {
         return new NodeBuilder() {
@@ -52,6 +68,8 @@ class SimulatorImpl implements Simulator {
                     new NodeImpl(
                             SimulatorImpl.this, address, name, kernel, neighbors);
                 
+                logger().log(Level.INFO, "Created node: {0}", node);
+                
                 synchronized (SimulatorImpl.this) {
                     nodes.put(address, node);
                     if (started)
@@ -84,13 +102,11 @@ class SimulatorImpl implements Simulator {
     }
     
     public Kernel createRouterKernel() {
-        // TODO Implement
-        return null;
+        return new KernelImpl();
     }
     
     public UserKernel createUserKernel() {
-        // TODO Implement
-        return null;
+        return new UserKernelImpl();
     }
     
     public synchronized void start() {
@@ -100,7 +116,7 @@ class SimulatorImpl implements Simulator {
     }
     
     public Logger logger() {
-        return Logger.getLogger("network.Simulator");
+        return log;
     }
     
     <I, T extends SimulationObject<I>> T checkOwnership(I node) {

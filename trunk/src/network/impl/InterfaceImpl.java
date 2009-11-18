@@ -9,6 +9,8 @@ import java.io.Serializable;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import network.Interface;
 import network.Message;
@@ -16,8 +18,11 @@ import network.NodeNotRunningException;
 
 final class InterfaceImpl extends SimulationObject<Interface>
         implements Interface {
+    private static final String LOG_NAME_PREFIX = "network.Interface.";
+    
     final NodeImpl node;
     final int index;
+    private final Logger logger;
     private volatile Wire wire;
     private volatile InterfaceImpl peer;
     private final BlockingQueue<byte[]> queue =
@@ -25,24 +30,31 @@ final class InterfaceImpl extends SimulationObject<Interface>
         // DelayedBlockingQueue for adding latency, etc.
         new LinkedBlockingQueue<byte[]>();
     
+    interface NewInterfaceCallback {
+        int registerInterface(InterfaceImpl iface);
+    }
+
+    InterfaceImpl(NodeImpl node, NewInterfaceCallback callback) {
+        super(node.sim);
+        this.node = node;
+        this.index = callback.registerInterface(this);
+        this.logger =
+            Logger.getLogger(LOG_NAME_PREFIX +
+                    NodeImpl.loggerNameSuffix(node.name(), node.address()) +
+                    ".[" + index + "]");
+    }
+    
     void connect(InterfaceImpl other) {
         new Wire(this, other).connect();
+        
+        logger.log(Level.INFO, "Interfaces connected: {0} to {1}",
+                new Object[] { this, peer });
     }
         
     void disconnect() {
         wire.disconnect();
         queue.clear();
     }   
-    
-    interface NewInterfaceCallback {
-        int registerInterface(InterfaceImpl iface);
-    }
-
-    InterfaceImpl(NodeImpl node, InterfaceImpl.NewInterfaceCallback callback) {
-        super(node.sim);
-        this.node = node;
-        this.index = callback.registerInterface(this);
-    }
     
     /**
      * Object to handle the synchronization of connection and disconnection
@@ -109,6 +121,8 @@ final class InterfaceImpl extends SimulationObject<Interface>
         if (peer == null)
             throw new DisconnectedException();
         
+        logger.log(Level.FINER, "Sent: {0}", message);
+        
         final byte[] data;
         try {
             data = serialize(message);
@@ -148,6 +162,8 @@ final class InterfaceImpl extends SimulationObject<Interface>
             throw new RuntimeException(e);
         }
         
+        logger.log(Level.FINER, "Received: {0}", message);
+        
         return message;
     }
     
@@ -166,7 +182,7 @@ final class InterfaceImpl extends SimulationObject<Interface>
     } 
     
     public String toString() {
-        return "Interface: " + node + "/" + index + " -> " 
-                + peer.node + "/" + peer.index;
+        return "Interface: " + node + "." + index + " -> " 
+                + peer.node + "." + peer.index;
     }
 }

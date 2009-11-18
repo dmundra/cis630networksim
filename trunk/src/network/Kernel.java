@@ -87,11 +87,11 @@ public interface Kernel {
     /**
      * Boot up the system. Will be called from a new thread.
      */
-    void start() throws Exception;
+    void start() throws InterruptedException;
     
     /**
      * Shut down the system. When this method returns, any extra threads
      * created by the node must have stopped.
      */
-    void shutDown();
+    void shutDown() throws InterruptedException;
 }

@@ -27,6 +27,10 @@ public final class Message<T extends Serializable> implements Serializable {
         return clazz.cast(data);
     }
     
+    public boolean hasType(Class<?> clazz) {
+        return clazz.isInstance(data);
+    }
+    
     @Override
     public String toString() {
         final StringBuilder builder = new StringBuilder("Message [");
@@ -34,12 +38,12 @@ public final class Message<T extends Serializable> implements Serializable {
         builder.append(Integer.toHexString(source)).append(':');
         KnownPort.formatPort(sourcePort, builder);
         
-        builder.append(" => ").append(Integer.toHexString(destination));
+        builder.append(" => ");
         
         builder.append(Integer.toHexString(destination)).append(':');
         KnownPort.formatPort(sourcePort, builder);
         
-        builder.append("] ").append(data);
+        builder.append("]: \"").append(data).append('"');
         
         return builder.toString();
     }
