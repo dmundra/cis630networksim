@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import network.Kernel;
@@ -18,12 +19,17 @@ class NodeImpl extends SimulationObject<Node> implements Node {
         new CopyOnWriteArrayList<InterfaceImpl>();
     private final BlockingQueue<InterfaceImpl> unusedInterfaces =
         new LinkedBlockingQueue<InterfaceImpl>();
-    private final ThreadGroup threadGroup;
-    private final MainThread thread;
-    private final Logger kernelLogger, logger;
+    private final ThreadGroup kernelThreadGroup;
+    private final KernelThread kernelThread;
+    private final Logger kernelLogger;
+    final Logger logger;
     
     private volatile boolean running;
     private volatile boolean shuttingDown;
+    
+    private static final String
+        NODE_LOG_NAME_BASE = "network.Node.",
+        KERNEL_LOG_NAME_BASE = "network.Kernel.";
     
     NodeImpl(SimulatorImpl sim, int address, String name,
             Kernel kernel, List<NodeImpl> neighbors) {
@@ -31,15 +37,23 @@ class NodeImpl extends SimulationObject<Node> implements Node {
 
         this.address = address;
         this.name = name;
-        this.threadGroup = new ThreadGroup(name);
-        this.thread = this.new MainThread();
+        this.kernelThreadGroup = new ThreadGroup(name);
+        this.kernelThread = this.new KernelThread();
         this.kernel = kernel != null ? kernel : sim.createRouterKernel();
         
-        this.logger = Logger.getLogger("network.Node.[" + this + "]");
-        this.kernelLogger = Logger.getLogger("network.Kernel.[" + this + "]");
+        {
+            final String suffix = loggerNameSuffix(name, address);
+            this.logger = Logger.getLogger(NODE_LOG_NAME_BASE + suffix);
+            this.kernelLogger = Logger.getLogger(KERNEL_LOG_NAME_BASE + suffix);
+        }
         
         for (NodeImpl node : neighbors)
             connectTo(node);
+    }
+    
+    static String loggerNameSuffix(String name, int address) {
+        return String.format("[%s].[@%x]",
+                name.replace("_", "__").replace('.', '_'), address);
     }
     
     InterfaceImpl connectTo(NodeImpl node) {
@@ -50,8 +64,11 @@ class NodeImpl extends SimulationObject<Node> implements Node {
     
     private InterfaceImpl unusedInterface() {
         final InterfaceImpl unused = unusedInterfaces.poll();
-        if (unused != null)
+        if (unused != null) {
+            logger.log(Level.FINER, 
+                    "Reusing disconnected interface: {0}", unused);
             return unused;
+        }
         
         final InterfaceImpl ans;
         synchronized (this) {
@@ -71,41 +88,41 @@ class NodeImpl extends SimulationObject<Node> implements Node {
     }
     
     void connected(InterfaceImpl iface) {
+        logger.log(Level.FINE, "Connected interface: {0}", iface);
         kernel.interfaceConnected(iface);
     }
     
     void disconnected(InterfaceImpl iface) {
+        logger.log(Level.FINE, "Disconnected interface: {0}", iface);
         kernel.interfaceDisconnected(iface);
         unusedInterfaces.add(iface);
     }
     
     void startUp() {
-        thread.start();
+        logger.info("Starting");
+        
+        kernelThread.start();
     }
     
-    class MainThread extends Thread {
-        private static final String NAME = "Main";
+    private class KernelThread extends Thread {
+        private static final String NAME = "Kernel";
         
-        MainThread() {
-            super(threadGroup, NAME);
+        private KernelThread() {
+            super(kernelThreadGroup, NAME);
         }
         
         public void run() {
+            logger.fine("Kernel thread started");
             running = true;
 
             kernel.setAddress(address);
             kernel.setName(name);
             kernel.setLogger(kernelLogger);
             try {
+                logger.log(Level.FINE, "Starting kernel: {0}", kernel);
                 kernel.start();
             } catch (InterruptedException e) {
                 // Do nothing; we're shutting down as intended
-            } catch (RuntimeException e) {
-                throw e;
-            } catch (Error e) {
-                throw e;
-            } catch (Exception e) {
-                this.getUncaughtExceptionHandler().uncaughtException(this, e);
             }
         }
     }
@@ -119,20 +136,23 @@ class NodeImpl extends SimulationObject<Node> implements Node {
     }
     
     void shutDown() {
+        logger.info("Shutting down");
+        
         shuttingDown = true;
         
         // No interfaces are allowed to be added now, so this is safe
         for (InterfaceImpl iface : interfaces)
             iface.disconnect();
         
-        kernel.shutDown();
         try {
+            kernel.shutDown();
             // Wait until the main thread finishes
-            thread.join();
-            threadGroup.destroy();
+            kernelThread.join();
+            kernelThreadGroup.destroy();
             running = false;
         } catch (InterruptedException e) {
             logger.warning("Interrupted during shutdown");
+            Thread.currentThread().interrupt();
         }
         
         shuttingDown = false;

@@ -8,6 +8,7 @@ import java.util.logging.Logger;
  * {@link #send(Message)} and {@link #receive()}.
  *
  * @see Process
+ * @see UserKernel
  *
  * @author Luke Maurer
  */
@@ -29,19 +30,19 @@ public interface OperatingSystem {
      */
     void send(Message<?> message) throws InterruptedException;
     
-    /**
-     * Send a message to another node, according to its
-     * {@link Message#destination} field. Blocks until the message leaves the
-     * interface or timeout occurs.
-     * 
-     * @param message The message to send.
-     * @param timeout How long to wait before timing out.
-     * @param unit The unit for <tt>timeout</tt>.
-     * @return Whether the send was successful (true) or it timed out (false).
-     * @throws InterruptedException If the thread is interrupted.
-     */
-    boolean send(Message<?> message, long timeout, TimeUnit unit)
-            throws InterruptedException;
+//    /**
+//     * Send a message to another node, according to its
+//     * {@link Message#destination} field. Blocks until the message leaves the
+//     * interface or timeout occurs.
+//     * 
+//     * @param message The message to send.
+//     * @param timeout How long to wait before timing out.
+//     * @param unit The unit for <tt>timeout</tt>.
+//     * @return Whether the send was successful (true) or it timed out (false).
+//     * @throws InterruptedException If the thread is interrupted.
+//     */
+//    boolean send(Message<?> message, long timeout, TimeUnit unit)
+//            throws InterruptedException;
     
     /**
      * Receive the next message sent to this node, without regard to the
@@ -77,6 +78,15 @@ public interface OperatingSystem {
      * Halt the running process, replacing it with the given one.
      * 
      * @param process The process to run in place of the current one.
+     * @throws InterruptedException Always.
      */
-    void replaceProcess(Process process);
+    void replaceProcess(Process process) throws InterruptedException;
+    
+    /**
+     * Spawn a new thread. This should be used instead of built-in Java thread
+     * creation mechanisms so that the threads can be kept track of. 
+     * 
+     * @param runnable The Runnable to run in the new thread.
+     */
+    void fork(Runnable runnable);
 }

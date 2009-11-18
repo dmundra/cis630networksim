@@ -1,7 +1,7 @@
 package network;
 
 public enum KnownPort {
-    RESERVED, RIP, HTTP, KERNEL_WHO;
+    UNKNOWN, RIP, HTTP, KERNEL_WHO;
     
     public int number() {
         return ordinal();
