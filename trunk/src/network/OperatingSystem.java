@@ -21,6 +21,13 @@ public interface OperatingSystem {
     Logger logger();
     
     /**
+     * returns the address of the kernel it's on...
+     * 
+     * @return the address of the node we are on
+     */
+    public int address();
+    
+    /**
      * Send a message to another node, according to its
      * {@link Message#destination} field. Blocks until the message leaves the
      * interface.
@@ -49,23 +56,27 @@ public interface OperatingSystem {
      * destination port or other niceties. Blocks until the message is
      * received.
      * 
+     * @param port is the port for which any returned message will be
+     * 			addressed to
      * @return The next message this node receives.
      * @throws InterruptedException If the thread is interrupted. 
      */
-    Message<?> receive() throws InterruptedException;
+    Message<?> receive(int port) throws InterruptedException;
     
     /**
      * Receive the next message sent to this node, without regard to the
      * destination port or other niceties. Blocks until the message is
      * received or timeout occurs.
      * 
+     * @param port is the port for which any returned message will be
+     * 			addressed to
      * @param timeout How long to wait before timing out.
      * @param unit The unit for <tt>timeout</tt>.
      * @return The next message this node receives, or <tt>null</tt> if timeout
      *          occurs before then.
      * @throws InterruptedException If the thread is interrupted. 
      */
-    Message<?> receive(long timeout, TimeUnit unit)
+    Message<?> receive(int port, long timeout, TimeUnit unit)
             throws InterruptedException;
     
     // XXX We only really *need* send and receive, but we should support

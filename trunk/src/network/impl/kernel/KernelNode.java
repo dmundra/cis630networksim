@@ -77,7 +77,7 @@ public class KernelNode implements Serializable {
 	}
 	
 	public String toString()	{
-		return "KernelNode: \n address:" + address + "\n cost:" + cost + "\n link:" + link + "\n routing table:" + routingTable.toString();
+		return "KernelNode: address:" + address + " cost:" + cost + " link:" + link + " routing table:" + routingTable.toString() + "";
 	}
 
 	public KernelNode partialClone() {

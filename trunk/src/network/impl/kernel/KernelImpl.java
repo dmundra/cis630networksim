@@ -4,6 +4,8 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 import network.AbstractKernel;
 import network.Interface;
@@ -73,31 +75,55 @@ public class KernelImpl extends AbstractKernel {
 		@SuppressWarnings("unchecked")
 		@Override
 		public void run() {
+			Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
+			//if(isDebug) log.info("running CheckMessages");
 			// we want to check all of the interfaces to see if they have any
 			// messages for us to process:
 			for (Map.Entry<Interface, Integer> pair : interfaceList.entrySet()) {
 				try {
 					// TODO: do our normal work if it isn't a rip message...
-					Message recievedMessage = pair.getKey().receive();
-					if (recievedMessage.data instanceof KernelNode) {
-						Message<KernelNode> rm2 = recievedMessage
-								.asType(KernelNode.class);
-						toRoute.put(pair.getValue(), rm2);
-						// }else if(...){
-					} else {
+					//if(isDebug) log.info("running CheckMessages 1");
+					Message recievedMessage = pair.getKey().receive(50, TimeUnit.MILLISECONDS);
+					//if(isDebug) log.info("running CheckMessages 2");
+					//rip message:
+					if(recievedMessage == null){
+						//no messages for us, ignore.
+					}else if(recievedMessage.destinationPort == KnownPort.KERNEL_WHO.ordinal()){
+						if(isDebug) System.out.println("checkMessages got a who");
+						//see if it's from a router:
+						if (recievedMessage.data instanceof KernelNode) {
+							Message<KernelNode> rm2 = recievedMessage
+									.asType(KernelNode.class);
+							toRoute.put(pair.getValue(), rm2);
+						}else if(recievedMessage.data instanceof String){
+							System.out.println("checkMessages instanceof String");
+							System.out.println("running CheckMessages 1");
+							//this is just from a regular computer, add it to the list:
+							KernelNode kn = new KernelNode(recievedMessage.source);
+							Message<KernelNode> mKN = new Message<KernelNode>(recievedMessage.source, recievedMessage.destination, recievedMessage.sourcePort, recievedMessage.destinationPort, kn);
+							toRoute.put(pair.getValue(), mKN);
+							System.out.println("running CheckMessages 2");
+							
+							//Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
+							//if(isDebug) log.info("got message back from " + recievedMessage.dataAs(String.class));
+						}
+					}
+					// }else if(...){
+					else {
 						// other cases did not work
-						throw new RuntimeException("Can't handle the case");
+						throw new RuntimeException("Can't handle the case: " + recievedMessage);
 					}
 
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
+					//we expect to hit this if we don't get any messages
 					e.printStackTrace();
 				}
 			}
+			//if(isDebug) log.info("exiting CheckMessages");
 		}
 
 	}
-
+	
 	/**
 	 * Class that runs the RIP algorithm to find all neighbors and add them to
 	 * Kernel's routing table.
@@ -106,6 +132,10 @@ public class KernelImpl extends AbstractKernel {
 		// TODO Clean up and fix RIP algorithm (current implementation of rip
 		// might be n^n...)
 		public void run() {
+			
+			Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
+			if(isDebug) log.info("running rip" + System.currentTimeMillis());
+			
 			for (Interface i : interfaceList.keySet()) {
 				try {
 					KernelNode kernelNode = new KernelNode(address());
@@ -129,6 +159,8 @@ public class KernelImpl extends AbstractKernel {
 			for (Map.Entry<Integer, Message<KernelNode>> pair : toRoute
 					.entrySet()) {				
 
+				if(isDebug) log.info("have an entry in the toRoute: " + pair);
+				
 				// Message<KernelNode> recievedMessage =
 				// pair.getKey().receive().asType(KernelNode.class);
 				KernelNode neighbor = pair.getValue().data.partialClone();
@@ -145,13 +177,17 @@ public class KernelImpl extends AbstractKernel {
 
 			}			
 
-			String toPrint = (name() + "- Check routing table:");
+			String toPrint = (name() + " - Check routing table:");
 			
 			for (Map.Entry<Integer, KernelNode> pair : routingTable.entrySet()) {
-				toPrint += ("\n\tName:" + pair.getValue().getAddress() + " Size:" + pair.getValue().getRoutingTable().size());
+				toPrint += ("\n\tName:" + pair.getValue().getAddress() + " Size:" + pair.getValue().getRoutingTable().size() + "\n\n");
 			}
 			
-			if(isDebug && name().equals("15")) System.out.println(toPrint);
+			
+			
+			if(isDebug) log.info(toPrint + "exiting rip");
+			
+			if(isDebug) System.out.println(toPrint);
 
 		}
 		
