@@ -9,8 +9,8 @@ import network.OperatingSystem;
 import network.Process;
 import network.Simulator;
 import network.SimulatorFactory;
-import network.impl.kernel.KernelImpl;
 import network.impl.UserKernelImpl;
+import network.impl.kernel.KernelImpl;
 
 import org.testng.annotations.Test;
 
@@ -18,6 +18,8 @@ public class KernelUserTest extends AbstractFileTest {
 
     @Test
     public void test() {
+    	System.out.println("KernelUserTest Running: Check log for output");
+    	
         final Simulator sim = SimulatorFactory.instance().createSimulator();
         
         UserKernelImpl userkernel1 = new UserKernelImpl();
@@ -40,45 +42,49 @@ public class KernelUserTest extends AbstractFileTest {
         .connections(router)
         .create();
                 
-        sim.start();
+        sim.start();        
         
+        // Sleep for 5 seconds so that the simulation can get started and
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            return;
+        }
+                  
         userkernel1.setProcess(new Process() {
 			
 			@Override
-			public void run(OperatingSystem os) throws InterruptedException {
-				
-				System.out.println("Test Process 1");	
-				
+			public void run(OperatingSystem os) throws InterruptedException {			
+				Logger log = os.logger().getLogger("test.KernelUserTest");
+
 				Message m = os.receive(KnownPort.KERNEL_WHO.ordinal());
-				System.out.println("got a message: " + m);
+				log.info("Got a message: " + m);
 				
 				os.send(new Message<String>(os.address(), m.source, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), "hi: " + os.address()));
 				
-				//int sourcePort = os.receive().sourcePort;
-				
-				//System.out.println("SourcePort: " + (sourcePort == KnownPort.KERNEL_WHO.ordinal()));
 			}
 			
 		});
         
-//    	userkernel1.setProcess(new Process() {
-//			
-//			@Override
-//			public void run(OperatingSystem os) throws InterruptedException {
-//				System.out.println("Test Process 2");	
-//				//int sourcePort = os.receive().sourcePort;
-//				
-//				//System.out.println("SourcePort: " + (sourcePort == KnownPort.KERNEL_WHO.ordinal()));
-//			}
-//			
-//		});
+        userkernel2.setProcess(new Process() {
+			
+			@Override
+			public void run(OperatingSystem os) throws InterruptedException {
+				Logger log = os.logger().getLogger("test.KernelUserTest");
+				
+				Message m = os.receive(KnownPort.KERNEL_WHO.ordinal());
+				log.info("Got a message: " + m);
+				
+				os.send(new Message<String>(os.address(), m.source, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), "hi: " + os.address()));
+				
+			}
+			
+		});
         
         try {
             Thread.sleep(60000);
         } catch (InterruptedException e) {
             return;
-        }      
-        
+        }            
     }
-
 }

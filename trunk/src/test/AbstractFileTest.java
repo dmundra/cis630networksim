@@ -7,6 +7,11 @@ import java.util.logging.Logger;
 
 import org.testng.annotations.BeforeSuite;
 
+/**
+ * Abstract base for tests, but uses generates log data into a file
+ *
+ * @author Daniel Mundra
+ */
 public abstract class AbstractFileTest {
     @BeforeSuite
     public void configureLogging() {

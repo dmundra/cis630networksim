@@ -75,37 +75,26 @@ public class KernelImpl extends AbstractKernel {
 		@SuppressWarnings("unchecked")
 		@Override
 		public void run() {
-			Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
-			//if(isDebug) log.info("running CheckMessages");
 			// we want to check all of the interfaces to see if they have any
 			// messages for us to process:
 			for (Map.Entry<Interface, Integer> pair : interfaceList.entrySet()) {
 				try {
 					// TODO: do our normal work if it isn't a rip message...
-					//if(isDebug) log.info("running CheckMessages 1");
 					Message recievedMessage = pair.getKey().receive(50, TimeUnit.MILLISECONDS);
-					//if(isDebug) log.info("running CheckMessages 2");
 					//rip message:
 					if(recievedMessage == null){
 						//no messages for us, ignore.
 					}else if(recievedMessage.destinationPort == KnownPort.KERNEL_WHO.ordinal()){
-						if(isDebug) System.out.println("checkMessages got a who");
 						//see if it's from a router:
 						if (recievedMessage.data instanceof KernelNode) {
 							Message<KernelNode> rm2 = recievedMessage
 									.asType(KernelNode.class);
 							toRoute.put(pair.getValue(), rm2);
 						}else if(recievedMessage.data instanceof String){
-							System.out.println("checkMessages instanceof String");
-							System.out.println("running CheckMessages 1");
 							//this is just from a regular computer, add it to the list:
 							KernelNode kn = new KernelNode(recievedMessage.source);
 							Message<KernelNode> mKN = new Message<KernelNode>(recievedMessage.source, recievedMessage.destination, recievedMessage.sourcePort, recievedMessage.destinationPort, kn);
 							toRoute.put(pair.getValue(), mKN);
-							System.out.println("running CheckMessages 2");
-							
-							//Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
-							//if(isDebug) log.info("got message back from " + recievedMessage.dataAs(String.class));
 						}
 					}
 					// }else if(...){
@@ -119,7 +108,6 @@ public class KernelImpl extends AbstractKernel {
 					e.printStackTrace();
 				}
 			}
-			//if(isDebug) log.info("exiting CheckMessages");
 		}
 
 	}
@@ -131,11 +119,7 @@ public class KernelImpl extends AbstractKernel {
 	class RIPTask extends TimerTask {
 		// TODO Clean up and fix RIP algorithm (current implementation of rip
 		// might be n^n...)
-		public void run() {
-			
-			Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
-			if(isDebug) log.info("running rip" + System.currentTimeMillis());
-			
+		public void run() {			
 			for (Interface i : interfaceList.keySet()) {
 				try {
 					KernelNode kernelNode = new KernelNode(address());
@@ -157,10 +141,7 @@ public class KernelImpl extends AbstractKernel {
 			
 			//see if anyone sent us a back their info
 			for (Map.Entry<Integer, Message<KernelNode>> pair : toRoute
-					.entrySet()) {				
-
-				if(isDebug) log.info("have an entry in the toRoute: " + pair);
-				
+					.entrySet()) {							
 				// Message<KernelNode> recievedMessage =
 				// pair.getKey().receive().asType(KernelNode.class);
 				KernelNode neighbor = pair.getValue().data.partialClone();
@@ -170,24 +151,21 @@ public class KernelImpl extends AbstractKernel {
 				routingTable.put(pair.getValue().source, neighbor);
 				
 				//now see if our updated node has any information that is better than what we have:
-				for(Map.Entry<Integer, KernelNode> sub : pair.getValue().data.getRoutingTable().entrySet()){
-					
+				for(Map.Entry<Integer, KernelNode> sub : pair.getValue().data.getRoutingTable().entrySet()){					
 					checkAndAdd(sub, pair.getValue().source);
 				}				
 
 			}			
 
 			String toPrint = (name() + " - Check routing table:");
-			
+						
 			for (Map.Entry<Integer, KernelNode> pair : routingTable.entrySet()) {
-				toPrint += ("\n\tName:" + pair.getValue().getAddress() + " Size:" + pair.getValue().getRoutingTable().size() + "\n\n");
+				toPrint += ("\n\tName:" + pair.getValue().getAddress() + " Size:" + pair.getValue().getRoutingTable().size() + "");
 			}
+						
+			Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
 			
-			
-			
-			if(isDebug) log.info(toPrint + "exiting rip");
-			
-			if(isDebug) System.out.println(toPrint);
+			if(isDebug) log.info(toPrint);
 
 		}
 		
