@@ -1,7 +1,14 @@
 package network.impl;
 
+import static org.testng.Assert.assertNotNull;
+
+import java.util.ArrayList;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,7 +24,7 @@ import network.Process;
 import network.UserKernel;
 import network.Interface.DisconnectedException;
 
-class UserKernelImpl extends AbstractKernel implements UserKernel {
+public class UserKernelImpl extends AbstractKernel implements UserKernel {
     private volatile ExecutorService executor;
     
     private ThreadGroup processThreadGroup;
@@ -25,7 +32,9 @@ class UserKernelImpl extends AbstractKernel implements UserKernel {
         new AtomicReference<Process>();
     
     public void setProcess(Process process) {
-        logger().info("Setting process " + process);
+    	assertNotNull(logger(),"Logger is null\n");
+    	
+    	logger().info("Setting process " + process);
         
         // Set the next process to run ...
         {
@@ -48,23 +57,31 @@ class UserKernelImpl extends AbstractKernel implements UserKernel {
         processThreadGroup = new ThreadGroup("Process");
         
         Process process;
-        while ((process = nextProcess.getAndSet(null)) != null) {
-            assert this.executor == null : "Preexisting executor found";
-            
-            final ExecutorService executor = this.executor = 
-                Executors.newCachedThreadPool(new ProcessThreadFactory());
-            
-            try {
-                executor.execute(new ProcessRunner(process));
-                while (!executor.awaitTermination(5, TimeUnit.SECONDS))
-                    continue;
-            } catch (InterruptedException e) {
-                logger().warning("Interrupted; shutting down now");
-                executor.shutdownNow();
-                throw e;
-            } finally {
-                this.executor = null;
-            }
+        while (true) {
+	        while ((process = nextProcess.getAndSet(null)) != null) {
+	            assert this.executor == null : "Preexisting executor found";
+	            
+	            final ExecutorService executor = this.executor = 
+	                Executors.newCachedThreadPool(new ProcessThreadFactory());
+	            
+	            try {
+	                executor.execute(new ProcessRunner(process));
+	                while (!executor.awaitTermination(5, TimeUnit.SECONDS))
+	                    continue;
+	            } catch (InterruptedException e) {
+	                logger().warning("Interrupted; shutting down now");
+	                executor.shutdownNow();
+	                throw e;
+	            } finally {
+	                this.executor = null;
+	            }
+	        }
+	        
+	        try {
+	            Thread.sleep(2000);
+	        } catch (InterruptedException e) {
+	            return;
+	        }
         }
     }
     
@@ -122,6 +139,10 @@ class UserKernelImpl extends AbstractKernel implements UserKernel {
             OS_LOG_NAME_BASE = "network.OperatingSystem.",
             PROCESS_LOG_NAME_BASE = "network.Process.";
         
+        private ArrayList<Integer> knownaddress = new ArrayList<Integer>();
+        private ConcurrentHashMap<Integer,LinkedBlockingQueue<Message>> msgQByPort = new ConcurrentHashMap<Integer, LinkedBlockingQueue<Message>>();
+        private Timer checkMessages;
+        
         private final Logger osLogger, processLogger;
         {
             final String suffix = NodeImpl.loggerNameSuffix(name(), address());
@@ -149,23 +170,59 @@ class UserKernelImpl extends AbstractKernel implements UserKernel {
             return ans;
         }
 
-        public Message<?> receive() throws InterruptedException {
-            final Message<?> message = iface().receive();
-            osLogger.log(Level.FINER, "Message received: {0}", message);
-            return message;
+        public Message<?> receive(int port) throws InterruptedException {
+        	
+        	
+        	
+        	
+//            final Message<?> message = iface().receive();
+//            osLogger.log(Level.FINER, "Message received: {0}", message);
+//            return message;
+        	
+        	return receive(port, Long.MAX_VALUE, TimeUnit.HOURS);
         }
 
-        public Message<?> receive(long timeout, TimeUnit unit)
+       
+
+		public Message<?> receive(int port, long timeout, TimeUnit unit)
                 throws InterruptedException {
-            final Message<?> ans = iface().receive(timeout, unit); 
             
-            if (ans == null)
-                osLogger.log(Level.FINER,
-                        "receive() timed out after {0}",
-                        formatTimeout(timeout, unit));
-            else
-                osLogger.log(Level.FINER,
-                        "Message received: {0}", ans);
+			if(checkMessages == null){
+				checkMessages = new Timer("checkMessages");
+				checkMessages.schedule(new PutMessagesInMap(), 4000, 1000);
+			}
+			
+			//see if we have a blocking queue:
+			if(msgQByPort.get(port) == null){
+				msgQByPort.putIfAbsent(port, new LinkedBlockingQueue<Message>());
+			}
+			
+			final Message<?> ans;
+	        if (unit != null) {
+	        	ans = msgQByPort.get(port).poll(timeout, unit);
+	        }else{
+	        	ans = msgQByPort.get(port).take();
+	        }
+	        
+	        
+	        if (ans == null){
+	              osLogger.log(Level.FINER,
+	                      "receive() timed out after {0}",
+	                      formatTimeout(timeout, unit));
+	        } else {
+	              osLogger.log(Level.FINER,
+	                      "Message received: {0}", ans);
+	        }
+			
+//			final Message<?> ans = iface().receive(timeout, unit); 
+//            
+//            if (ans == null)
+//                osLogger.log(Level.FINER,
+//                        "receive() timed out after {0}",
+//                        formatTimeout(timeout, unit));
+//            else
+//                osLogger.log(Level.FINER,
+//                        "Message received: {0}", ans);
             return ans;
         }
         
@@ -196,5 +253,39 @@ class UserKernelImpl extends AbstractKernel implements UserKernel {
             setProcess(process);
             throw new InterruptedException();
         }
+        
+        /**
+    	 * Class that checks to see if we have any messages to process in the
+    	 * interfaces
+    	 */
+    	class PutMessagesInMap extends TimerTask {
+
+    		@SuppressWarnings("unchecked")
+    		@Override
+    		public void run() {
+    			// we want to check all of the interfaces to see if they have any
+    			// messages for us to process:
+    			
+    				try {
+    					Message recievedMessage = iface().receive();
+    					
+    					if(msgQByPort.get(recievedMessage.destinationPort) == null){
+    						msgQByPort.putIfAbsent(recievedMessage.destinationPort, new LinkedBlockingQueue<Message>());
+    					}
+    					msgQByPort.get(recievedMessage.destinationPort).add(recievedMessage);
+
+    				} catch (InterruptedException e) {
+    					// TODO Auto-generated catch block
+    					e.printStackTrace();
+    				}
+    			}
+    		
+
+    	}
+
+		@Override
+		public int address() {
+			return UserKernelImpl.this.address();
+		}
     }
 }

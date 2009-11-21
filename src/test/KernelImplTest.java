@@ -10,10 +10,8 @@ import network.impl.kernel.KernelImpl;
 
 import org.testng.annotations.Test;
 
-public class KernelImplTest {
-    final Random random = new Random();
-    
-    
+public class KernelImplTest extends AbstractFileTest {
+    final Random random = new Random();    
     
     @Test
     public void test() {
@@ -42,7 +40,7 @@ public class KernelImplTest {
         
         Random r = new Random();
         
-        for(int i = 1; i <= 500; i++) {
+        for(int i = 1; i <= 4; i++) {
             final Node temp = sim.buildNode()
             .name("" + (i+1))
             .kernel(new KernelImpl())
