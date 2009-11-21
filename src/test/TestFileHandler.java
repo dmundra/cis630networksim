@@ -4,6 +4,11 @@ import java.io.IOException;
 import java.util.logging.FileHandler;
 import java.util.logging.SimpleFormatter;
 
+/**
+ * Simple log handler but it extends FileHandler
+ *
+ * @author Daniel Mundra
+ */
 public class TestFileHandler extends FileHandler {
 
 	public TestFileHandler(String arg0, boolean arg1) throws IOException,
