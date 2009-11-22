@@ -47,6 +47,10 @@ class NodeImpl extends SimulationObject<Node> implements Node {
             this.kernelLogger = Logger.getLogger(KERNEL_LOG_NAME_BASE + suffix);
         }
         
+        this.kernel.setAddress(address);
+        this.kernel.setName(name);
+        this.kernel.setLogger(this.kernelLogger);
+        
         for (NodeImpl node : neighbors)
             connectTo(node);
     }
@@ -115,9 +119,6 @@ class NodeImpl extends SimulationObject<Node> implements Node {
             logger.fine("Kernel thread started");
             running = true;
 
-            kernel.setAddress(address);
-            kernel.setName(name);
-            kernel.setLogger(kernelLogger);
             try {
                 logger.log(Level.FINE, "Starting kernel: {0}", kernel);
                 kernel.start();

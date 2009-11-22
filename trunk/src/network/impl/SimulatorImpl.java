@@ -13,6 +13,7 @@ import java.util.logging.Logger;
 import network.Interface;
 import network.Kernel;
 import network.Node;
+import network.Process;
 import network.Simulator;
 import network.UserKernel;
 import network.impl.kernel.KernelImpl;
@@ -107,6 +108,10 @@ class SimulatorImpl implements Simulator {
     
     public UserKernel createUserKernel() {
         return new UserKernelImpl();
+    }
+    
+    public UserKernel createUserKernel(Process process) {
+        return new UserKernelImpl(process);
     }
     
     public synchronized void start() {

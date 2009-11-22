@@ -52,7 +52,9 @@ final class InterfaceImpl extends SimulationObject<Interface>
     }
         
     void disconnect() {
-        wire.disconnect();
+        final Wire wire = this.wire;
+        if (wire != null)
+            wire.disconnect();
         queue.clear();
     }   
     
@@ -180,6 +182,10 @@ final class InterfaceImpl extends SimulationObject<Interface>
         final ObjectInputStream objIn = new ObjectInputStream(in);
         return objIn.readObject();
     } 
+    
+    public int index() {
+        return index;
+    }
     
     public String toString() {
         return "Interface: " + node + "." + index + " -> " 

@@ -33,6 +33,7 @@ public interface Simulator {
     
     Kernel createRouterKernel();
     UserKernel createUserKernel();
+    UserKernel createUserKernel(Process process);
     
     void start();
     

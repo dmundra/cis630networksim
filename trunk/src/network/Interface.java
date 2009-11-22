@@ -48,6 +48,15 @@ public interface Interface {
     Message<?> receive(long time, TimeUnit timeUnit) throws InterruptedException;
     
     /**
+     * Get the index of the interface within the node's list of interfaces.
+     * Each interface has a unique index within the node, and it's guaranteed
+     * that <code>node.interfaces().get(iface.index()) == iface</code>.
+     * 
+     * @return The interface's index.
+     */
+    int index();
+    
+    /**
      * Exception indicating that an {@link Interface#send(Message)} call was
      * made to an interface that has been disconnected.
      *

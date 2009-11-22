@@ -7,6 +7,10 @@ public enum KnownPort {
         return ordinal();
     }
     
+    public boolean is(int number) {
+        return ordinal() == number;
+    }
+    
     public static KnownPort withNumber(int number) {
         final KnownPort[] all = KnownPort.values();
         if (number < 0 || number > all.length)

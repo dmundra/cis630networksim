@@ -14,54 +14,23 @@ import network.Message;
 import network.Interface.DisconnectedException;
 
 public class KernelImpl extends AbstractKernel {
-
-	/** this is a map of our interface to unique integer */
-	private ConcurrentHashMap<Interface, Integer> interfaceList = new ConcurrentHashMap<Interface, Integer>();
-	private ConcurrentHashMap<Integer, KernelNode> routingTable = new ConcurrentHashMap<Integer, KernelNode>();
+    private ConcurrentHashMap<Integer, KernelNode> routingTable = new ConcurrentHashMap<Integer, KernelNode>();
 	/** a list of the messages that need to be processed by the routing table */
 	private ConcurrentHashMap<Integer, Message<KernelNode>> toRoute = new ConcurrentHashMap<Integer, Message<KernelNode>>();
 	/**for debugging*/
 	private static boolean isDebug = true;
 	
-	@Override
-	public void interfaceAdded(Interface iface) {
-
-		int i = interfaceList.size() - 1;
-		synchronized (interfaceList) {
-			for (Integer j : interfaceList.values()) {
-				i = Math.max(i, j);
-			}
-
-			// we should have a unique i
-			interfaceList.put(iface, i);
-		}
-	}
-
-	@Override
-	public void interfaceConnected(Interface iface) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void interfaceDisconnected(Interface iface) {
-
-		// want to sync so that we don't remove while adding
-		synchronized (interfaceList) {
-			interfaceList.remove(iface);
-		}
-	}
-
+	private volatile Timer checkNeighbors;
+	
 	@Override
 	public void shutDown() {
-		// TODO Auto-generated method stub
-
+	    checkNeighbors.cancel();
 	}
 
 	@Override
 	public void start() {
 		// Runs the RIP algorithm every 50 seconds for now.
-		Timer checkNeighbors = new Timer("checkNeighbors");
+		checkNeighbors = new Timer("checkNeighbors");
 		checkNeighbors.schedule(new RIPTask(), 2000, 1000);
 		checkNeighbors.schedule(new CheckMessages(), 4000, 1000);
 	}
@@ -77,10 +46,10 @@ public class KernelImpl extends AbstractKernel {
 		public void run() {
 			// we want to check all of the interfaces to see if they have any
 			// messages for us to process:
-			for (Map.Entry<Interface, Integer> pair : interfaceList.entrySet()) {
+		    for (Interface iface : interfaces()) {
 				try {
 					// TODO: do our normal work if it isn't a rip message...
-					Message recievedMessage = pair.getKey().receive(50, TimeUnit.MILLISECONDS);
+					Message recievedMessage = iface.receive(50, TimeUnit.MILLISECONDS);
 					//rip message:
 					if(recievedMessage == null){
 						//no messages for us, ignore.
@@ -89,12 +58,12 @@ public class KernelImpl extends AbstractKernel {
 						if (recievedMessage.data instanceof KernelNode) {
 							Message<KernelNode> rm2 = recievedMessage
 									.asType(KernelNode.class);
-							toRoute.put(pair.getValue(), rm2);
+							toRoute.put(iface.index(), rm2);
 						}else if(recievedMessage.data instanceof String){
 							//this is just from a regular computer, add it to the list:
 							KernelNode kn = new KernelNode(recievedMessage.source);
 							Message<KernelNode> mKN = new Message<KernelNode>(recievedMessage.source, recievedMessage.destination, recievedMessage.sourcePort, recievedMessage.destinationPort, kn);
-							toRoute.put(pair.getValue(), mKN);
+							toRoute.put(iface.index(), mKN);
 						}
 					}
 					// }else if(...){
@@ -104,8 +73,8 @@ public class KernelImpl extends AbstractKernel {
 					}
 
 				} catch (InterruptedException e) {
-					//we expect to hit this if we don't get any messages
-					e.printStackTrace();
+					// We're shutting down
+				    return;
 				}
 			}
 		}
@@ -120,7 +89,7 @@ public class KernelImpl extends AbstractKernel {
 		// TODO Clean up and fix RIP algorithm (current implementation of rip
 		// might be n^n...)
 		public void run() {			
-			for (Interface i : interfaceList.keySet()) {
+			for (Interface i : interfaces()) {
 				try {
 					KernelNode kernelNode = new KernelNode(address());
 					kernelNode.setRoutingTable(routingTable);
