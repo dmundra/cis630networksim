@@ -20,7 +20,7 @@ public abstract class AbstractKernel implements Kernel {
         this.address = address; 
     }
     
-    public final int address() {
+    protected final int address() {
         return address;
     }
     
