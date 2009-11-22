@@ -15,6 +15,12 @@ public final class Message<T extends Serializable> implements Serializable {
         this.data = data;
     }
     
+    public Message(int source, int destination,
+            KnownPort sourcePort, KnownPort destinationPort, T data) {
+        this(source, destination, sourcePort.number(), destinationPort.number(),
+                data);
+    }
+    
     @SuppressWarnings("unchecked")
     public <U extends Serializable> Message<U> asType(Class<U> clazz) {
         // Throw exception if wrong class

@@ -9,6 +9,7 @@ import network.OperatingSystem;
 import network.Process;
 import network.Simulator;
 import network.SimulatorFactory;
+import network.OperatingSystem.DisconnectedException;
 import network.impl.UserKernelImpl;
 import network.impl.kernel.KernelImpl;
 
@@ -60,7 +61,11 @@ public class KernelUserTest extends AbstractFileTest {
 				Message m = os.receive(KnownPort.KERNEL_WHO.ordinal());
 				log.info("Got a message: " + m);
 				
-				os.send(new Message<String>(os.address(), m.source, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), "hi: " + os.address()));
+				try {
+				    os.send(new Message<String>(os.address(), m.source, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), "hi: " + os.address()));
+				} catch (DisconnectedException e) {
+				    throw new RuntimeException(e);
+				}
 				
 			}
 			
@@ -75,8 +80,11 @@ public class KernelUserTest extends AbstractFileTest {
 				Message m = os.receive(KnownPort.KERNEL_WHO.ordinal());
 				log.info("Got a message: " + m);
 				
-				os.send(new Message<String>(os.address(), m.source, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), "hi: " + os.address()));
-				
+				try {
+				    os.send(new Message<String>(os.address(), m.source, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), "hi: " + os.address()));
+				} catch (DisconnectedException e) {
+				    throw new RuntimeException(e);
+				}
 			}
 			
 		});

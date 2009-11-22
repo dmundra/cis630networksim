@@ -1,11 +1,12 @@
 package network;
 
+import java.io.Serializable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
  * The API by which a {@link Process} can perform system operations such as
- * {@link #send(Message)} and {@link #receive()}.
+ * {@link #send(Message)} and {@link #receive(int)}.
  *
  * @see Process
  * @see UserKernel
@@ -35,7 +36,26 @@ public interface OperatingSystem {
      * @param message The message to send.
      * @throws InterruptedException If the thread is interrupted.
      */
-    void send(Message<?> message) throws InterruptedException;
+    void send(Message<?> message)
+            throws DisconnectedException, InterruptedException;
+    
+    /**
+     * Send a message to another node. Blocks until the message leaves the
+     * interface.
+     * <p>
+     * This method is equivalent to calling {@link #send(Message)} with a
+     * newly constructed Message object.
+     * 
+     * @param dest The node to which to send the message.
+     * @param sourcePort The port from which the message is said to originate.
+     * @param destPort The port to which to send the message.
+     * @param content The content of the message.
+     * @throws InterruptedException If the thread is interrupted.
+     */
+    void send(int dest, int sourcePort, int destPort, Serializable content)
+            throws DisconnectedException, InterruptedException;
+    
+    
     
 //    /**
 //     * Send a message to another node, according to its
@@ -79,9 +99,6 @@ public interface OperatingSystem {
     Message<?> receive(int port, long timeout, TimeUnit unit)
             throws InterruptedException;
     
-    // XXX We only really *need* send and receive, but we should support
-    // sockets that bind to ports and can be select()'d somehow.
-    
     // XXX Also we need more exceptions, like RoutingExceptions for when the
     // destination can't be found and such.
     
@@ -100,4 +117,20 @@ public interface OperatingSystem {
      * @param runnable The Runnable to run in the new thread.
      */
     void fork(Runnable runnable);
+    
+    /**
+     * Exception indicating that an {@link OperatingSystem#send(Message)} call
+     * was made when the node is not connected to any other.
+     *
+     * @author Luke Maurer
+     */
+    class DisconnectedException extends Exception {
+        public DisconnectedException() {
+            this("Node is disconnected");
+        }
+        
+        public DisconnectedException(String msg) {
+            super(msg);
+        }
+    }
 }
