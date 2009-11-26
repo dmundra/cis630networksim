@@ -55,7 +55,22 @@ public interface OperatingSystem {
     void send(int dest, int sourcePort, int destPort, Serializable content)
             throws DisconnectedException, InterruptedException;
     
-    
+    /**
+     * Send a message to another node. Blocks until the message leaves the
+     * interface.
+     * <p>
+     * This method is equivalent to calling {@link #send(Message)} with a
+     * newly constructed Message object.
+     * 
+     * @param dest The node to which to send the message.
+     * @param sourcePort The port from which the message is said to originate.
+     * @param destPort The port to which to send the message.
+     * @param content The content of the message.
+     * @throws InterruptedException If the thread is interrupted.
+     */
+    void send(int dest, KnownPort sourcePort, KnownPort destPort,
+                Serializable content)
+            throws DisconnectedException, InterruptedException;
     
 //    /**
 //     * Send a message to another node, according to its
@@ -72,24 +87,30 @@ public interface OperatingSystem {
 //            throws InterruptedException;
     
     /**
-     * Receive the next message sent to this node, without regard to the
-     * destination port or other niceties. Blocks until the message is
-     * received.
+     * Receive the next message sent to the given port on this node. Blocks
+     * until the message is received.
      * 
-     * @param port is the port for which any returned message will be
-     * 			addressed to
+     * @param port The port to listen on.
      * @return The next message this node receives.
      * @throws InterruptedException If the thread is interrupted. 
      */
     Message<?> receive(int port) throws InterruptedException;
     
     /**
-     * Receive the next message sent to this node, without regard to the
-     * destination port or other niceties. Blocks until the message is
-     * received or timeout occurs.
+     * Receive the next message sent to the given port on this node. Blocks
+     * until the message is received.
      * 
-     * @param port is the port for which any returned message will be
-     * 			addressed to
+     * @param port The port to listen on.
+     * @return The next message this node receives.
+     * @throws InterruptedException If the thread is interrupted. 
+     */
+    Message<?> receive(KnownPort port) throws InterruptedException;
+    
+    /**
+     * Receive the next message sent to the given port on this node. Blocks
+     * until the message is received or timeout occurs.
+     * 
+     * @param port The port to listen on.
      * @param timeout How long to wait before timing out.
      * @param unit The unit for <tt>timeout</tt>.
      * @return The next message this node receives, or <tt>null</tt> if timeout
@@ -97,6 +118,20 @@ public interface OperatingSystem {
      * @throws InterruptedException If the thread is interrupted. 
      */
     Message<?> receive(int port, long timeout, TimeUnit unit)
+            throws InterruptedException;
+    
+    /**
+     * Receive the next message sent to the given port on this node. Blocks
+     * until the message is received or timeout occurs.
+     * 
+     * @param port The port to listen on.
+     * @param timeout How long to wait before timing out.
+     * @param unit The unit for <tt>timeout</tt>.
+     * @return The next message this node receives, or <tt>null</tt> if timeout
+     *          occurs before then.
+     * @throws InterruptedException If the thread is interrupted. 
+     */
+    Message<?> receive(KnownPort port, long timeout, TimeUnit unit)
             throws InterruptedException;
     
     // XXX Also we need more exceptions, like RoutingExceptions for when the

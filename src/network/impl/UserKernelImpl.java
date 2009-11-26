@@ -196,8 +196,17 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
             return ans;
         }
 
+        public Message<?> receive(KnownPort port) throws InterruptedException {
+            return receive(port.number());
+        }
+        
         public Message<?> receive(int port) throws InterruptedException {
             return receive(port, 0, null);
+        }
+        
+        public Message<?> receive(KnownPort port, long timeout, TimeUnit unit)
+                throws InterruptedException {
+            return receive(port.number(), 0, null);
         }
 
         private BlockingQueue<Message<?>> queue(int port) {
@@ -254,17 +263,25 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
             }
         }
         
-        public void send(int dest, int sourcePort, int destPort, Serializable content)
-                throws DisconnectedException, InterruptedException {
+        public void send(int dest, int sourcePort, int destPort,
+                Serializable content)
+                    throws DisconnectedException, InterruptedException {
             send(new Message<Serializable>(
                     address(), dest, sourcePort, destPort, content));
+        }
+        
+        public void send(int dest, KnownPort sourcePort, KnownPort destPort,
+                Serializable content) throws DisconnectedException,
+                InterruptedException {
+            send(dest, sourcePort.number(), destPort.number(), content);
         }
         
         public void fork(Runnable runnable) {
             executor.execute(runnable);
         }
         
-        public void replaceProcess(Process process) throws InterruptedException {
+        public void replaceProcess(Process process)
+                throws InterruptedException {
             setProcess(process);
             throw new InterruptedException();
         }
@@ -283,8 +300,8 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
                         
                         if (KnownPort.KERNEL_WHO.is(destPort)) {
                             try {
-                                send(message.source, KnownPort.KERNEL_WHO.number(),
-                                        KnownPort.KERNEL_WHO.number(),
+                                send(message.source, KnownPort.KERNEL_WHO,
+                                        KnownPort.KERNEL_WHO,
                                         name());
                             } catch (DisconnectedException e) {
                                 // We got disconnected after they send the

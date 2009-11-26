@@ -66,12 +66,12 @@ public class CountingProcessTest extends AbstractTest {
         
         final Simulator sim = SimulatorFactory.instance().createSimulator();
         
-        final Node a = sim.buildNode()
+        final Node a = sim.buildNode(1)
             .name("A")
             .kernel(sim.createUserKernel(new CountingProcess(2, true)))
             .create();
         
-        final Node b = sim.buildNode()
+        final Node b = sim.buildNode(2)
             .name("B")
             .kernel(sim.createUserKernel(new CountingProcess(1, false)))
             .connections(a)
@@ -91,17 +91,17 @@ public class CountingProcessTest extends AbstractTest {
         
         final Simulator sim = SimulatorFactory.instance().createSimulator();
         
-        final Node a = sim.buildNode()
+        final Node a = sim.buildNode(1)
             .name("A")
             .kernel(sim.createUserKernel(new CountingProcess(2, true)))
             .create();
         
-        final Node b = sim.buildNode()
+        final Node b = sim.buildNode(2)
             .name("B")
             .kernel(sim.createUserKernel(new CountingProcess(3, false)))
             .create();
         
-        final Node c = sim.buildNode()
+        final Node c = sim.buildNode(3)
             .name("C")
             .kernel(sim.createUserKernel(new CountingProcess(1, false)))
             .create();

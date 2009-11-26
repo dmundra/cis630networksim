@@ -4,7 +4,7 @@ import java.util.List;
 /**
  * A machine on the network. May be either a router or a leaf node.
  * 
- * @see Simulator#buildNode()
+ * @see Simulator#buildNode(int)
  *
  * @author Luke Maurer
  */
