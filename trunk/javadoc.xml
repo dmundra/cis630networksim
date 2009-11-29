@@ -1,8 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project default="javadoc">
-<target name="javadoc">
-<javadoc access="public" author="true" classpath="." destdir="doc" nodeprecated="false" nodeprecatedlist="false" noindex="false" nonavbar="false" notree="false" packagenames="network.impl,network,test" source="1.6" sourcepath="src" splitindex="true" use="true" version="true">
-<link href="http://java.sun.com/javase/6/docs/api/"/>
-</javadoc>
-</target>
+  <target name="javadoc">
+    <javadoc
+      access="protected"
+      author="true"
+      classpath=".;lib/*.jar"
+      destdir="doc"
+      nodeprecated="false"
+      nodeprecatedlist="false"
+      noindex="false"
+      nonavbar="false"
+      notree="false"
+      packagenames="network.impl,network,network.protocols,network.impl.kernel,network.software,test"
+      doctitle="CIS 630 Network Simulator API"
+      source="1.6"
+      sourcepath="src"
+      splitindex="true"
+      use="true"
+      version="true">
+    <link href="http://java.sun.com/javase/6/docs/api/"/>
+    </javadoc>
+  </target>
 </project>
