@@ -1,0 +1,38 @@
+=CIS 630 Project Status Summary=
+
+==Project==
+Network Simulation
+
+==Description==
+Goal of the project is to simulate a network with computers
+and routers and messages being send and received between them.
+
+==What we have so far==
+We have a hierarchy of interfaces that represent
+  * Kernel - Logic responsible for handling routing and messaging
+  * Nodes - A machine on the network. May be either a router or a leaf node.
+  * Processes - The software loaded into a node.
+  * Operating System - The API for the OS to send and receive messages and run processes
+  * Simulator - The main control interface to the simulation. From here, nodes are created, destroyed, and manipulated at will.
+  
+==With that we have classes that represent==
+  * Interface Implementations - KernelImpl, NodeImpl, and etc.
+  * Protocols - HTTP protocol
+  * Software - HTTPServer
+  * Test Programs - CountingTest, HTTPServerTest, KernelUserTest
+  
+==Test programs we have so far==
+  * CountingTest - Test two nodes connected to each other where one node sends a number the other one receives it, increments it and sends it back.
+  * CoutingProcessTest - Same as above but uses processes to send and receive messages
+  * HTTPServerTest - Test of client-server http model
+  * KernelUserTest - Test of simple network simulation of routers and computers
+
+==Other Notes==
+We are using TestNG to test are code. We have implemented Java Logger in all our classes to use for
+logging.
+
+==Next==
+  * We are finishing up the KernelImpl for routers to manage routing messages sent from one node to another in a network.
+  * $$ Do a network simulation that runs the lamport logical clocks algorithm. (Anthony's favorite)
+  * $$ Implement another algorithm - voting algorithm, mutex algorithm.
+  * Finish report & demo the two examples above $$
