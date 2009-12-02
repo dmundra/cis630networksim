@@ -11,7 +11,7 @@
       noindex="false"
       nonavbar="false"
       notree="false"
-      packagenames="network.impl,network,network.protocols,network.impl.kernel,network.software,test"
+      packagenames="network.impl,network,network.protocols,network.impl.kernel,network.software"
       doctitle="CIS 630 Network Simulator API"
       source="1.6"
       sourcepath="src"
