@@ -3,6 +3,9 @@ package test;
 import java.util.logging.Handler;
 import java.util.logging.Logger;
 
+import network.Simulator;
+import network.SimulatorFactory;
+
 import org.testng.annotations.BeforeSuite;
 
 /**
@@ -17,5 +20,16 @@ public abstract class AbstractTest {
         for (Handler handler : root.getHandlers())
             root.removeHandler(handler);
         root.addHandler(new TestNGLogHandler());
+    }
+    
+    private Simulator simulator;
+    protected synchronized Simulator simulator() {
+        if (simulator == null)
+            simulator = SimulatorFactory.instance().createSimulator();
+        return simulator;
+    }
+    
+    protected Simulator sim() {
+        return simulator();
     }
 }

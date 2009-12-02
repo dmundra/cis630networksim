@@ -1,6 +1,7 @@
 package network;
 
 import java.io.Serializable;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
@@ -150,8 +151,10 @@ public interface OperatingSystem {
      * creation mechanisms so that the threads can be kept track of. 
      * 
      * @param runnable The Runnable to run in the new thread.
+     * @return A {@link Future} that can be used to control the new thread. Its
+     * value will always be null.
      */
-    void fork(Runnable runnable);
+    Future<?> fork(Runnable runnable);
     
     /**
      * Exception indicating that an {@link OperatingSystem#send(Message)} call

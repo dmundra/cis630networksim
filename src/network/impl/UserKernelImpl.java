@@ -1,10 +1,12 @@
 package network.impl;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
@@ -144,9 +146,9 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
         @Override
         public void run() {
             logger().fine("Running process");
+            final OperatingSystemImpl os = new OperatingSystemImpl();
+            os.start();
             try {
-                final OperatingSystemImpl os = new OperatingSystemImpl();
-                os.start();
                 process.run(os);
             } catch (InterruptedException e) {
                 logger().fine("Process interrupted");
@@ -187,13 +189,14 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
         private Interface iface() {
             // This is kinda hacky, but for the moment it suffices to
             // assume that each non-router host gets connected exactly once
-            // to exactly one router.
+            // to exactly one other node.
             
-            final Interface ans = interfaces().get(0);
-            if (ans == null)
-                throw new IllegalStateException("No interfaces are connected"); 
-            
-            return ans;
+            final List<Interface> ifaces = interfaces();
+            try {
+                return ifaces.get(0);
+            } catch (IndexOutOfBoundsException e) {
+                throw new IllegalStateException("No interfaces are connected");
+            }
         }
 
         public Message<?> receive(KnownPort port) throws InterruptedException {
@@ -276,8 +279,8 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
             send(dest, sourcePort.number(), destPort.number(), content);
         }
         
-        public void fork(Runnable runnable) {
-            executor.execute(runnable);
+        public Future<?> fork(Runnable runnable) {
+            return executor.submit(runnable);
         }
         
         public void replaceProcess(Process process)
@@ -293,6 +296,8 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
         private class PutMessagesInMap implements Runnable {
             @Override
             public void run() {
+                Thread.currentThread().setName("Message Processor");
+                
                 try {
                     while (true) {
                         final Message<?> message = iface().receive();
