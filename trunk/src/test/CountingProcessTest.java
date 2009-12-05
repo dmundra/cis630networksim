@@ -14,7 +14,7 @@ import network.OperatingSystem.DisconnectedException;
 
 public class CountingProcessTest extends AbstractTest {
     private static final int GOAL = 100;
-    private static final long TIMEOUT = 5000;
+    private static final long TIMEOUT = 0;
     
     private volatile CountDownLatch goalSignal;
     
@@ -40,6 +40,8 @@ public class CountingProcessTest extends AbstractTest {
         }
         
         protected void run() throws InterruptedException {
+        	Thread.sleep(3000);
+        	
             if (first)
                 send(1);
             
@@ -59,8 +61,8 @@ public class CountingProcessTest extends AbstractTest {
         }
     }
     
-    @Test(description="Test with two nodes directly connected",
-            timeOut=TIMEOUT)
+//    @Test(description="Test with two nodes directly connected",
+//            timeOut=TIMEOUT)
     public void test() throws InterruptedException {
         goalSignal = new CountDownLatch(1);
         
@@ -84,8 +86,8 @@ public class CountingProcessTest extends AbstractTest {
         sim.destroy(b);
     }
     
-    @Test(description="Test with three nodes connected by a router",
-            timeOut=TIMEOUT)
+//    @Test(description="Test with three nodes connected by a router",
+//            timeOut=TIMEOUT)
     public void test3Nodes() throws InterruptedException {
         goalSignal = new CountDownLatch(1);
         
@@ -118,5 +120,53 @@ public class CountingProcessTest extends AbstractTest {
         sim.destroy(b);
         sim.destroy(c);
         sim.destroy(router);
+    }
+    
+    @Test(description="Test with 5 nodes connected by two routers",
+            timeOut=TIMEOUT)
+    public void test5Nodes() throws InterruptedException {
+        goalSignal = new CountDownLatch(1);
+        
+        final Simulator sim = SimulatorFactory.instance().createSimulator();
+        
+        final Node a = sim.buildNode(1)
+            .name("A")
+            .kernel(sim.createUserKernel(new CountingProcess(2, true)))
+            .create();
+        
+        final Node b = sim.buildNode(2)
+            .name("B")
+            .kernel(sim.createUserKernel(new CountingProcess(3, false)))
+            .create();
+        
+        final Node c = sim.buildNode(3)
+            .name("C")
+            .kernel(sim.createUserKernel(new CountingProcess(4, false)))
+            .create();
+        
+        final Node d = sim.buildNode(4)
+	        .name("D")
+	        .kernel(sim.createUserKernel(new CountingProcess(5, false)))
+	        .create();
+    
+        final Node e = sim.buildNode(5)
+	        .name("E")
+	        .kernel(sim.createUserKernel(new CountingProcess(1, false)))
+	        .create();
+        
+        final Node router1 = sim.buildNode()
+            .name("Router1")
+            .connections(a, b, c)
+            .create();
+        
+        final Node router2 = sim.buildNode()
+            .name("Router2")
+            .connections(router1,d,e)
+            .create();
+        
+        sim.start();
+        goalSignal.await();
+        
+        sim.destroy();
     }
 }
