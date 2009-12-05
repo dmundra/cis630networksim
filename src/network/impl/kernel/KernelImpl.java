@@ -5,7 +5,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
 import network.AbstractKernel;
 import network.Interface;
@@ -17,8 +16,6 @@ public class KernelImpl extends AbstractKernel {
     private ConcurrentHashMap<Integer, KernelNode> routingTable = new ConcurrentHashMap<Integer, KernelNode>();
 	/** a list of the messages that need to be processed by the routing table */
 	private ConcurrentHashMap<Integer, Message<KernelNode>> toRoute = new ConcurrentHashMap<Integer, Message<KernelNode>>();
-	/**for debugging*/
-	private static boolean isDebug = true;
 	
 	private volatile Timer checkNeighbors;
 	
@@ -31,8 +28,8 @@ public class KernelImpl extends AbstractKernel {
 	public void start() {
 		// Runs the RIP algorithm every 50 seconds for now.
 		checkNeighbors = new Timer("checkNeighbors");
-		checkNeighbors.schedule(new RIPTask(), 2000, 1000);
-		checkNeighbors.schedule(new CheckMessages(), 4000, 1000);
+		checkNeighbors.schedule(new RIPTask(), 200, 500);
+		checkNeighbors.schedule(new CheckMessages(), 2000, 500);
 	}
 
 	/**
@@ -41,6 +38,11 @@ public class KernelImpl extends AbstractKernel {
 	 */
 	class CheckMessages extends TimerTask {
 
+		public void createDiscError(Message<?> rm) {
+			logger().info(rm.toString());
+			logger().info(routingTable.toString());
+		}
+		
 		@SuppressWarnings("unchecked")
 		@Override
 		public void run() {
@@ -48,28 +50,42 @@ public class KernelImpl extends AbstractKernel {
 			// messages for us to process:
 		    for (Interface iface : interfaces()) {
 				try {
-					// TODO: do our normal work if it isn't a rip message...
-					Message recievedMessage = iface.receive(50, TimeUnit.MILLISECONDS);
-					//rip message:
-					if(recievedMessage == null){
-						//no messages for us, ignore.
-					}else if(recievedMessage.destinationPort == KnownPort.KERNEL_WHO.ordinal()){
-						//see if it's from a router:
-						if (recievedMessage.data instanceof KernelNode) {
-							Message<KernelNode> rm2 = recievedMessage
+					Message receivedMessage = iface.receive(50, TimeUnit.MILLISECONDS);
+					
+					// This is for case a message timeout
+					if(receivedMessage == null){
+						// no messages for us, ignore.
+					} else if(receivedMessage.destinationPort == KnownPort.KERNEL_WHO.ordinal()){
+						// rip message:
+						// see if it's from a router:
+						if (receivedMessage.data instanceof KernelNode) {
+							Message<KernelNode> rm2 = receivedMessage
 									.asType(KernelNode.class);
 							toRoute.put(iface.index(), rm2);
-						}else if(recievedMessage.data instanceof String){
-							//this is just from a regular computer, add it to the list:
-							KernelNode kn = new KernelNode(recievedMessage.source);
-							Message<KernelNode> mKN = new Message<KernelNode>(recievedMessage.source, recievedMessage.destination, recievedMessage.sourcePort, recievedMessage.destinationPort, kn);
+						}else if(receivedMessage.data instanceof String){
+							// this is just from a regular computer, add it to the list:
+							KernelNode kn = new KernelNode(receivedMessage.source);
+							Message<KernelNode> mKN = new Message<KernelNode>(receivedMessage.source, receivedMessage.destination, receivedMessage.sourcePort, receivedMessage.destinationPort, kn);
 							toRoute.put(iface.index(), mKN);
 						}
-					}
-					// }else if(...){
-					else {
-						// other cases did not work
-						throw new RuntimeException("Can't handle the case: " + recievedMessage);
+					} else {
+						
+						int dest = receivedMessage.destination;						
+						KernelNode destNode = routingTable.get(dest);						
+						
+						if(destNode != null) {
+							
+							Interface sendIface = interfaces().get(destNode.getLink());
+							
+							try {
+								sendIface.send(receivedMessage);
+							} catch (DisconnectedException e) {
+								e.printStackTrace();
+							}
+						} else {
+							createDiscError(receivedMessage);
+						}						
+						
 					}
 
 				} catch (InterruptedException e) {
@@ -121,20 +137,20 @@ public class KernelImpl extends AbstractKernel {
 				
 				//now see if our updated node has any information that is better than what we have:
 				for(Map.Entry<Integer, KernelNode> sub : pair.getValue().data.getRoutingTable().entrySet()){					
-					checkAndAdd(sub, pair.getValue().source);
+					checkAndAdd(sub, pair.getKey());
 				}				
 
 			}			
 
-			String toPrint = (name() + " - Check routing table:");
-						
-			for (Map.Entry<Integer, KernelNode> pair : routingTable.entrySet()) {
-				toPrint += ("\n\tName:" + pair.getValue().getAddress() + " Size:" + pair.getValue().getRoutingTable().size() + "");
-			}
-						
-			Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
-			
-			if(isDebug) log.info(toPrint);
+//			String toPrint = (name() + " - Check routing table:");
+//						
+//			for (Map.Entry<Integer, KernelNode> pair : routingTable.entrySet()) {
+//				toPrint += ("\n\tName:" + pair.getValue().getAddress() + " Size:" + pair.getValue().getRoutingTable().size() + "");
+//			}
+//						
+//			Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
+//			
+//			if(isDebug) log.info(toPrint);
 
 		}
 		
@@ -145,8 +161,7 @@ public class KernelImpl extends AbstractKernel {
 		private void checkAndAdd(Map.Entry<Integer, KernelNode> info, int link){
 //			KernelNode toAdd = info.getValue().clone();
 //			toAdd.setCost(toAdd.getCost() + 1);
-//			toAdd.setLink(link);
-			
+//			toAdd.setLink(link);			
 			
 			boolean checkNewGuy = false;
 			// see if the address is in our table:

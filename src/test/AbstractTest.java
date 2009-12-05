@@ -20,6 +20,7 @@ public abstract class AbstractTest {
         for (Handler handler : root.getHandlers())
             root.removeHandler(handler);
         root.addHandler(new TestNGLogHandler());
+        //root.setLevel(Level.FINER);
     }
     
     private Simulator simulator;
