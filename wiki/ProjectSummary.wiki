@@ -42,4 +42,4 @@ Our network simulator is useful representation of real world networks and can be
 
 ==Next==
   * We are finishing up the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java KernelImpl] for routers to manage routing messages sent from one node to another in a network.
-  * Finish report & demo the two examples above $$
+  * Finish report & demo the two examples above.
