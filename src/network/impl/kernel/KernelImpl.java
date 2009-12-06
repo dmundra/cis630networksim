@@ -5,6 +5,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 import network.AbstractKernel;
 import network.Interface;
@@ -28,8 +29,8 @@ public class KernelImpl extends AbstractKernel {
 	public void start() {
 		// Runs the RIP algorithm every 50 seconds for now.
 		checkNeighbors = new Timer("checkNeighbors");
-		checkNeighbors.schedule(new RIPTask(), 200, 500);
-		checkNeighbors.schedule(new CheckMessages(), 2000, 500);
+		checkNeighbors.schedule(new RIPTask(), 200, 1000);
+		checkNeighbors.schedule(new CheckMessages(), 2000, 50);
 	}
 
 	/**
@@ -50,7 +51,7 @@ public class KernelImpl extends AbstractKernel {
 			// messages for us to process:
 		    for (Interface iface : interfaces()) {
 				try {
-					Message receivedMessage = iface.receive(50, TimeUnit.MILLISECONDS);
+					Message receivedMessage = iface.receive(1, TimeUnit.MILLISECONDS);
 					
 					// This is for case a message timeout
 					if(receivedMessage == null){
@@ -80,7 +81,8 @@ public class KernelImpl extends AbstractKernel {
 							try {
 								sendIface.send(receivedMessage);
 							} catch (DisconnectedException e) {
-								e.printStackTrace();
+								//interfaces().remove(sendIface);
+								//e.printStackTrace();
 							}
 						} else {
 							createDiscError(receivedMessage);
@@ -115,10 +117,8 @@ public class KernelImpl extends AbstractKernel {
 					i.send(findNeighbors);
 
 				} catch (DisconnectedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					//e.printStackTrace();
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
@@ -150,7 +150,7 @@ public class KernelImpl extends AbstractKernel {
 //						
 //			Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
 //			
-//			if(isDebug) log.info(toPrint);
+//			log.info(toPrint);
 
 		}
 		
