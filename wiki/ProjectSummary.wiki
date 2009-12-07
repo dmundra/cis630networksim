@@ -8,7 +8,7 @@ Goal of the project is to simulate a network with computers
 and routers and messages being send and received between them.
 
 ==Project Evolution==
-Simulation of a botnet was our initial goal.  In order to contain and run a botnet, we chose to implement a distributed network simulation.  Due to the complexity of the process, building a network simulation became a project in itself and the botnet fell by the wayside.  Within the network simulation framework we were able to implement the Bully Algorithm which employs Lamport's clock and the Token Ring Algorithm. 
+Simulation of a botnet was our initial goal.  In order to contain and run a botnet, we chose to implement a distributed network simulation.  Due to the complexity of the process, building a network simulation became a project in itself and the botnet fell by the wayside.  Within the network simulation framework we were able to implement the Token Ring Algorithm and the Bully Algorithm which employs Lamport's clock. 
 
 ==Network Simulator==
 We have a hierarchy of interfaces that represent
@@ -26,20 +26,24 @@ With that we have classes that represent
   
 ==Tests==
   * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/BullyTest.java BullyTest]  - Test of network which implements the Bully Algorithm for establishing control.  The Bully Algorithm uses Lamport Clocks for the election process.
-  * TODO: enter link here - Test of network which implements the Ring Algorithm for establishing control.
+  * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java TokenRingTwoPhaseTest] - Test of network which implements the Ring Algorithm for establishing control.
   * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/CountingTest.java CountingTest] - Test two nodes connected to each other where one node sends a number the other one receives it, increments it and sends it back.
   * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/CountingProcessTest.java CoutingProcessTest] - Same as above but uses processes to send and receive messages
   * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/HTTPServerTest.java HTTPServerTest] - Test of client-server http model
   * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/KernelUserTest.java KernelUserTest] - Test of simple network simulation of routers and computers
+  * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/MultiProcessTest.java MultiProcessTest] - Tests if multiple processes can be running on the operating system.
+  * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/SimpleTestRun.java SimpleTestRun] - Tests if the nodes are being created correctly.
 
 ==Other Notes==
-We are using TestNG to test are code. We have implemented Java Logger in all our classes to use for
-logging.
+We are using TestNG to test are code. We have implemented Java Logger in all our classes to use for logging.
 
 == Why our interface is useful to simulate a distributed system ==
 Our network simulator is useful representation of real world networks and can be set-up in any configuration which physical networks exist.  The Nodes, which represent routers and computers, run independent of each other. Encapsulation of data and code forces the user to obey the normal physical constraints of contacting other nodes through "wired" connections rather than just accessing the information. 
 
+* Bully Algorithm on a simulated DS:
 
-==Next==
-  * We are finishing up the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java KernelImpl] for routers to manage routing messages sent from one node to another in a network.
-  * Finish report & demo the two examples above.
+ EXPLAIN BULLY ALGORITHM HERE
+
+* Two Phase Commit on a simulated DS:
+
+  Nodes on a token ring are logically organized in a ring topology with data being transmitted sequentially from one node to the next with a control token circulating around the ring controlling access.  The logical topology is used for the two phase process of voting and commit/abort.  Our test simulations allows the user to set the likelihood nodes will not agree to the commit request as well as the likelihood a node will want a token that is up for grabs.      
