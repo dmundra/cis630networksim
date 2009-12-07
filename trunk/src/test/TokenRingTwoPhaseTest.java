@@ -19,7 +19,7 @@ import network.OperatingSystem.DisconnectedException;
 import org.testng.annotations.Test;
 
 /**
- * Test for a two phase protocol system in a token ring system
+ * Test for a two phase protocol system in a token ring topology
  * 
  * @author Daniel Mundra
  * 

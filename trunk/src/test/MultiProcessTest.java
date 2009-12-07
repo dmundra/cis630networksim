@@ -8,6 +8,11 @@ import network.software.MultiProcess;
 
 import org.testng.annotations.Test;
 
+/**
+ * Test to show a process that creates multiple processes
+ * @author Luke Maurer
+ *
+ */
 public class MultiProcessTest extends AbstractTest {
     private static final int PROCESS_COUNT = 5;
     
