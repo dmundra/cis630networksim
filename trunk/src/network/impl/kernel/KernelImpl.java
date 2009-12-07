@@ -20,12 +20,20 @@ public class KernelImpl extends AbstractKernel {
 	
 	private volatile Timer checkNeighbors;
 	
-	@Override
-	public void shutDown() {
+	/**
+	 * Shutdown router
+	 */
+	public void shutDown() throws InterruptedException {
 	    checkNeighbors.cancel();
+	    
+        logger().info("Shutting down");
+        
+        Thread.sleep(100);
 	}
 
-	@Override
+	/**
+	 * Start up router. Set RIP algorithm to run every second. Router will check messages every 50ms
+	 */
 	public void start() {
 		// Runs the RIP algorithm every 50 seconds for now.
 		checkNeighbors = new Timer("checkNeighbors");
@@ -104,8 +112,7 @@ public class KernelImpl extends AbstractKernel {
 	 * Kernel's routing table.
 	 */
 	class RIPTask extends TimerTask {
-		// TODO Clean up and fix RIP algorithm (current implementation of rip
-		// might be n^n...)
+		@SuppressWarnings("static-access")
 		public void run() {			
 			for (Interface i : interfaces()) {
 				try {
@@ -142,15 +149,19 @@ public class KernelImpl extends AbstractKernel {
 
 			}			
 
-//			String toPrint = (name() + " - Check routing table:");
-//						
-//			for (Map.Entry<Integer, KernelNode> pair : routingTable.entrySet()) {
-//				toPrint += ("\n\tName:" + pair.getValue().getAddress() + " Size:" + pair.getValue().getRoutingTable().size() + "");
-//			}
-//						
-//			Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
-//			
-//			log.info(toPrint);
+			boolean debug = false;
+			// Print routing table
+			if(debug) {
+				String toPrint = (name() + " - Check routing table:");
+							
+				for (Map.Entry<Integer, KernelNode> pair : routingTable.entrySet()) {
+					toPrint += ("\n\tName:" + pair.getValue().getAddress() + " Size:" + pair.getValue().getRoutingTable().size() + "");
+				}
+							
+				Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
+				
+				log.info(toPrint);
+			}
 
 		}
 		
