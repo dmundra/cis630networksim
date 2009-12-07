@@ -3,6 +3,7 @@ package test;
 import java.util.concurrent.TimeUnit;
 
 import network.AbstractProcess;
+import network.Node;
 import network.software.MultiProcess;
 
 import org.testng.annotations.Test;
@@ -32,7 +33,10 @@ public class MultiProcessTest extends AbstractTest {
             });
         }
         
-        sim().buildNode().kernel(sim().createUserKernel(process)).create();
+		final Node a = sim().buildNode().name("A").kernel(sim().createUserKernel(process)).create();
+		@SuppressWarnings("unused")
+		final Node router1 = sim().buildNode().name("Router1").connections(a).create();
+        
         sim().start();
         
         TimeUnit.SECONDS.sleep(1);

@@ -334,11 +334,13 @@ public class BullyTest extends AbstractTest {
                         	//be from a new node, or some messages may not have
                         	//made it to this guy (he thinks WWII is still going)
                         	 if (resultMessage.data.address > os().address()) {
-	                             // call an election
-	                             callElection = true;
+	                             
 	                             
 	                             //add if a new guy:
-	                             addMemberIfNeeded(resultMessage.source);
+	                             if(addMemberIfNeeded(resultMessage.source)){
+	                            	// call an election
+		                             callElection = true;
+	                             }
                              }
                         }
                     }
@@ -356,6 +358,7 @@ public class BullyTest extends AbstractTest {
                                 break;
                             } else {
                                 os().logger().info("didn't make it out of p2");
+                                electionMessage = null;
                             }
                         } else {
                             break;
@@ -369,22 +372,22 @@ public class BullyTest extends AbstractTest {
         /**
          * this adds a member to our list if not already present
          * @param member the new member to add
+         * @return true if we add, false otherwise
          */
-		private void addMemberIfNeeded(int member) {
+		private boolean addMemberIfNeeded(int member) {
 	        //only want one thread to modify (currently there is only one thread of
 			//execution, but just in case we add more)
 			synchronized(members){
 				boolean found = false;
 				for(int i : members){
 					if(i == member){
-						found = true;
-						break;
+						return false;
 					}
 				}
 				
-				if(!found){
-					members.add(member);
-				}
+				
+				members.add(member);
+				return true;
 			}
         }
     }

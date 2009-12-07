@@ -27,6 +27,8 @@ import org.testng.annotations.Test;
 public class TokenRingTwoPhaseTest extends AbstractTest {
 	private static final long TIMEOUT = 0;
     private static final Random rand = new Random();
+    private static int successCounts;
+	private static int counter;
 
 	private volatile CountDownLatch goalSignal;
 
@@ -36,30 +38,31 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 	 *
 	 */
 	private class TokenRingTwoPhaseProcess extends AbstractProcess {
-		private static final int PORT = 35;
-
+		private static final int PORT = 35;			
+		// Counter to run the token toCommits a number of times
+		private static final int GOAL = 5;
+		private static final int ACCEPT_COMMIT = 10;
+		private static final int GRAB_TOKEN = 8;
 		private final int peerAddr;
-		private final boolean first;
+		private boolean iWantToCommit;
 
 		/**
 		 * Create process with peer address and whether it is first
 		 * @param peerAddr - address of the next node in the ring
 		 * @param first - whether you are the first one in the token
 		 */
-		TokenRingTwoPhaseProcess(int peerAddr, boolean first) {
+		TokenRingTwoPhaseProcess(int peerAddr, boolean iWantToCommit) {
 			this.peerAddr = peerAddr;
-			this.first = first;
+			this.iWantToCommit = iWantToCommit;
 		}
 
 		/**
 		 * Send token and msg with it
 		 * @param token - token to be sent
-		 * @param msg - message with it
 		 * @throws InterruptedException
 		 */
-		private void send(RTuple token, String msg) throws InterruptedException {
+		private void send(RTuple token) throws InterruptedException {
 	
-			os().logger().log(Level.INFO, "Sending " + msg + ": {0}", token);
 			try {
 				os().send(peerAddr, PORT, PORT, token);
 			} catch (DisconnectedException e) {
@@ -77,7 +80,6 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 
 			token.accepts.add(accept);
 			
-			os().logger().log(Level.INFO, "Sending Accept: {0}", token);
 			try {
 				os().send(peerAddr, PORT, PORT, token);
 			} catch (DisconnectedException e) {
@@ -90,11 +92,12 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 		 */
 		protected void run() throws InterruptedException {
 			Thread.sleep(5000);
-
+			
 			// If you are the first you will send the commit request
-			if (first) {
-				RTuple token = RTuple.get(os().address(), true, false);
-				send(token, "To Commit");
+			if (iWantToCommit) {
+				os().logger().log(Level.INFO, "Message: {0}", "I " + os().address() + " Want To Commit");
+				RTuple token = RTuple.get(os().address(), true, false, false);
+				send(token);
 			}
 
 			while (true) {
@@ -103,10 +106,9 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 						RTuple.class);
 
 				final RTuple token = message.data;
-				os().logger().log(Level.INFO, "Received: {0}", token);
 				
                 // Randomly sleep
-				if (!first) {
+				if (!iWantToCommit) {
                     Thread.sleep(1000 * rand.nextInt(4));
                 }
 				
@@ -115,41 +117,72 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 				// If every one accepted then you send a token of success to everyone
 				// If you have got a acknowledgment of success you are done
 				// If you have got a acknowledgment of abort you are done
-				if(first) {					
+				if(iWantToCommit) {					
 					if(token.accepts.contains(false)) {
-						os().logger().log(Level.INFO, "Message: {0}", "I have to abort");
-						RTuple newToken = RTuple.get(os().address(), false, false);
-						send(newToken, "Abort");
+						os().logger().log(Level.INFO, "Someone disagreed, abort: {0}", token);
+						RTuple newToken = RTuple.get(os().address(), false, false, false);
+						send(newToken);
 					} else {
 						if(token.toCommit) {
-							os().logger().log(Level.INFO, "Token Ring came back and every one agreed: {0}", token);
-							RTuple newToken = RTuple.get(os().address(), false, true);
-							send(newToken, "Success");
+							os().logger().log(Level.INFO, "Everyone agreed, success: {0}", token);
+							RTuple newToken = RTuple.get(os().address(), false, true, false);
+							send(newToken);
 						} else if(token.success) {
-							os().logger().log(Level.INFO, "Message: {0}", "Successfully committed");
-							os().logger().info("Reached goal; signaling");
-							goalSignal.countDown();
+							successCounts++;
+							counter++;
+							
+							os().logger().log(Level.INFO, "Message: {0}", "Successfully committed");							
+							
+							if(counter>=GOAL) {
+								os().logger().info("Reached goal; signaling");
+								goalSignal.countDown();
+							} else {
+								os().logger().info("Token is up for grabs");
+								this.iWantToCommit = false;
+								RTuple newToken = RTuple.get(os().address(), false, false, true);
+								send(newToken);
+							}
 						} else {
+							counter++;
 							os().logger().log(Level.INFO, "Message: {0}", "Aborted!");	
 							os().logger().info("Reached goal; signaling");
-							goalSignal.countDown();						
+							
+							if(counter>=GOAL) {
+								os().logger().info("Reached goal; signaling");
+								goalSignal.countDown();
+							} else {
+								os().logger().info("Token is up for grabs");
+								this.iWantToCommit = false;
+								RTuple newToken = RTuple.get(os().address(), false, false, true);
+								send(newToken);							
+							}
 						}
 					}
 				// If you are not first then you have to accept the commit and send an agreement
 				// or send an acknowledgment to success or abort
 				} else {
 					if(token.toCommit) {
-						if(os().address() == 3) {
+						if(ACCEPT_COMMIT <= (rand.nextInt(10)+1)) {
 							sendAccept(token, false);
 						} else {
 							sendAccept(token, true);
 						}
 					} else if(token.success) {
 						os().logger().log(Level.INFO, "Message: {0}", "Good for you, releasing locks");
-						send(token, "Release");
+						send(token);
+					} else if(token.upForGrabs) {
+						if(GRAB_TOKEN <= (rand.nextInt(10)+1)) {
+							os().logger().log(Level.INFO, "Message: {0}", "I " + os().address() + " Want To Commit");
+							this.iWantToCommit = true;
+							RTuple newToken = RTuple.get(os().address(), true, false, false);
+							send(newToken);
+						} else {
+							os().logger().info("Token is up for grabs");
+							send(token);
+						}
 					} else {
 						os().logger().log(Level.INFO, "Message: {0}", "Oh " + token.address + " aborted. Continue on!");
-						send(token, "Aborted");
+						send(token);
 					}
 				}
 			}
@@ -159,6 +192,7 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 	@Test(description = "Test with 5 nodes connected by two routers", timeOut = TIMEOUT)
 	public void test5Nodes() throws InterruptedException {
 		goalSignal = new CountDownLatch(1);
+		counter = 0;
 
 		final Simulator sim = SimulatorFactory.instance().createSimulator();
 
@@ -186,6 +220,8 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 
 		sim.start();
 		goalSignal.await();
+		
+		sim.logger().info("Number of two phase successes: " + successCounts);
 
 		sim.destroy();
 	}
@@ -202,19 +238,21 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 		int address;
         boolean toCommit;
         boolean success;
+        boolean upForGrabs;
         ArrayList<Boolean> accepts; 
 
-        public static RTuple get(int address, boolean toCommit, boolean success) {
+        public static RTuple get(int address, boolean toCommit, boolean success, boolean upForGrabs) {
             RTuple ret = new RTuple();
             ret.address = address;
             ret.toCommit = toCommit;
             ret.success = success;
+            ret.upForGrabs = upForGrabs;
             ret.accepts = new ArrayList<Boolean>();
             return ret;
         }
 
         public String toString() {
-            return "address:" + address + " Commit:" + toCommit + " Success:" + success + " Accepts:" + accepts;
+            return "address:" + address + " Commit:" + toCommit + " Success:" + success + " UpForGrabs:" + upForGrabs + " Accepts:" + accepts;
         }
     }
 }
