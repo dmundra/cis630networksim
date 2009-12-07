@@ -10,37 +10,33 @@ import network.impl.kernel.KernelImpl;
 
 import org.testng.annotations.Test;
 
-public class KernelImplTest extends AbstractFileTest {
-    final Random random = new Random();    
+/**
+ * Stress program to test 50 routers connected to each other randomly.
+ * The program will test the RIP algorithm that is executed by each router.
+ * @author Daniel Mundra
+ *
+ */
+public class KernelImplTest extends AbstractTest {
+    final Random random = new Random();   
+    final int TEST_NODES = 50;
     
     @Test
     public void test() {
         final Simulator sim = SimulatorFactory.instance().createSimulator();
         
         ArrayList<Node> lst = new ArrayList<Node>();
+        KernelImpl.printRipTable = true;
         
         final Node a = sim.buildNode()
             .name("1")
             .kernel(new KernelImpl())
             .create();
-//        
-//        final Node b = sim.buildNode()
-//            .name("B")
-//            .kernel(new KernelImpl())
-//            .connections(a)
-//            .create();
-//        
-//        final Node c = sim.buildNode()
-//        .name("C")
-//        .kernel(new KernelImpl())
-//        .connections(a)
-//        .create();
         
         lst.add(a);
         
         Random r = new Random();
         
-        for(int i = 1; i <= 4; i++) {
+        for(int i = 1; i <= TEST_NODES; i++) {
             final Node temp = sim.buildNode()
             .name("" + (i+1))
             .kernel(new KernelImpl())
@@ -49,8 +45,6 @@ public class KernelImplTest extends AbstractFileTest {
             lst.add(temp);
         }
         
-        //((CountingKernel) a.kernel()).first = true;
-        
         sim.start();
         
         try {
@@ -58,9 +52,5 @@ public class KernelImplTest extends AbstractFileTest {
         } catch (InterruptedException e) {
             return;
         }
-    }
-    
-    public static void main(String args[]) {
-    	new KernelImplTest().test();
     }
 }
