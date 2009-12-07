@@ -17,7 +17,7 @@ public class KernelImpl extends AbstractKernel {
     private ConcurrentHashMap<Integer, KernelNode> routingTable = new ConcurrentHashMap<Integer, KernelNode>();
 	/** a list of the messages that need to be processed by the routing table */
 	private ConcurrentHashMap<Integer, Message<KernelNode>> toRoute = new ConcurrentHashMap<Integer, Message<KernelNode>>();
-	
+	public static boolean printRipTable = false;
 	private volatile Timer checkNeighbors;
 	
 	/**
@@ -149,9 +149,8 @@ public class KernelImpl extends AbstractKernel {
 
 			}			
 
-			boolean debug = false;
 			// Print routing table
-			if(debug) {
+			if(printRipTable) {
 				String toPrint = (name() + " - Check routing table:");
 							
 				for (Map.Entry<Integer, KernelNode> pair : routingTable.entrySet()) {
@@ -170,9 +169,6 @@ public class KernelImpl extends AbstractKernel {
 		 * @param toAdd the info to check (and add if needed)
 		 */
 		private void checkAndAdd(Map.Entry<Integer, KernelNode> info, int link){
-//			KernelNode toAdd = info.getValue().clone();
-//			toAdd.setCost(toAdd.getCost() + 1);
-//			toAdd.setLink(link);			
 			
 			boolean checkNewGuy = false;
 			// see if the address is in our table:
