@@ -3,7 +3,6 @@ package test;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Random;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
@@ -23,7 +22,6 @@ public class BullyTest extends AbstractTest {
     private static final long WAIT_FOR_LEADER_RESPONSE_TO_ELECTION = WAIT_FOR_LEADER_RESPONSE * 2;
     private static final long WAIT_FOR_NEW_LEADER_RESPONSE_TO_ELECTION = WAIT_FOR_LEADER_RESPONSE_TO_ELECTION * 2;
     private static final Random rand = new Random();
-    private volatile CountDownLatch goalSignal;
 
     private class BullyProcess extends AbstractProcess {
 

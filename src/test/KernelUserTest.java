@@ -1,7 +1,5 @@
 package test;
 
-import java.util.logging.Logger;
-
 import network.KnownPort;
 import network.Message;
 import network.Node;
@@ -15,7 +13,7 @@ import network.impl.kernel.KernelImpl;
 
 import org.testng.annotations.Test;
 
-public class KernelUserTest extends AbstractFileTest {
+public class KernelUserTest extends AbstractTest {
 
     @Test
     public void test() {
@@ -31,13 +29,15 @@ public class KernelUserTest extends AbstractFileTest {
         .kernel(new KernelImpl())
         .create();
         
-        final Node user1 = sim.buildNode()
+        @SuppressWarnings("unused")
+		final Node user1 = sim.buildNode()
         .name("A")
         .kernel(userkernel1)
         .connections(router)
         .create();
         
-        final Node user2 = sim.buildNode()
+        @SuppressWarnings("unused")
+		final Node user2 = sim.buildNode()
         .name("B")
         .kernel(userkernel2)
         .connections(router)
@@ -55,11 +55,10 @@ public class KernelUserTest extends AbstractFileTest {
         userkernel1.setProcess(new Process() {
 			
 			@Override
-			public void run(OperatingSystem os) throws InterruptedException {			
-				Logger log = os.logger().getLogger("test.KernelUserTest");
+			public void run(OperatingSystem os) throws InterruptedException {
 
-				Message m = os.receive(KnownPort.KERNEL_WHO.ordinal());
-				log.info("Got a message: " + m);
+				Message<String> m = os.receive(KnownPort.KERNEL_WHO.ordinal()).asType(String.class);
+				os.logger().info("Got a message: " + m);
 				
 				try {
 				    os.send(new Message<String>(os.address(), m.source, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), "hi: " + os.address()));
@@ -75,10 +74,9 @@ public class KernelUserTest extends AbstractFileTest {
 			
 			@Override
 			public void run(OperatingSystem os) throws InterruptedException {
-				Logger log = os.logger().getLogger("test.KernelUserTest");
 				
-				Message m = os.receive(KnownPort.KERNEL_WHO.ordinal());
-				log.info("Got a message: " + m);
+				Message<String> m = os.receive(KnownPort.KERNEL_WHO.ordinal()).asType(String.class);
+				os.logger().info("Got a message: " + m);
 				
 				try {
 				    os.send(new Message<String>(os.address(), m.source, KnownPort.KERNEL_WHO.ordinal(), KnownPort.KERNEL_WHO.ordinal(), "hi: " + os.address()));
