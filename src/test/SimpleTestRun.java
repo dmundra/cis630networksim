@@ -9,6 +9,11 @@ import network.SimulatorFactory;
 
 import org.testng.annotations.Test;
 
+/**
+ * First test we ran to check the underlying implementation
+ * @author Luke Maurer
+ *
+ */
 public class SimpleTestRun {
     private static class TrivialKernel extends AbstractKernel {
         public void interfaceAdded(Interface iface) { }
