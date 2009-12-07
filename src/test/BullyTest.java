@@ -51,7 +51,7 @@ public class BullyTest extends AbstractTest {
             // see if we are not the leader:
             if (os().address() != leader) {
 
-                os().logger().log(Level.INFO, "Sending: {0}", leader);
+                os().logger().log(Level.INFO, "Sending info to my leader: {0}", leader);
                 try {
                     os().send(leader, WORK_PORT, WORK_PORT, "are you there?");
                 } catch (DisconnectedException e) {
@@ -63,7 +63,7 @@ public class BullyTest extends AbstractTest {
                     Message<String> message = os().receive(WORK_PORT,
                             WAIT_FOR_LEADER_RESPONSE, TimeUnit.SECONDS).asType(
                             String.class);
-                    os().logger().log(Level.INFO, "Received: {0}",
+                    os().logger().log(Level.INFO, "Got info back from my leader: {0}",
                             message.source);
                 } catch (Exception e) {
                     // we didn't get a response, call an election:
@@ -74,7 +74,8 @@ public class BullyTest extends AbstractTest {
                     while (true) {
                         Message<String> message = os().receive(WORK_PORT, 1,
                                 TimeUnit.MILLISECONDS).asType(String.class);
-                        os().logger().info("Hi! I am the leader");
+                        
+                        os().logger().info("I am the leader, responding to " + message.source);
 
                         try {
                             os().send(message.source, WORK_PORT, WORK_PORT,
@@ -104,29 +105,7 @@ public class BullyTest extends AbstractTest {
                 // election
                 ++electionNum;
 
-                // clear any old votes:
-                // try {
-                // while (true) {
-                // Message<ETuple> msg = os().receive(ELECTION_PORT, 10,
-                // TimeUnit.MILLISECONDS).asType(ETuple.class);
-                //
-                // if(msg == null){
-                // break;
-                // }else
-                // }
-                // } catch (Exception e) {
-                // // do nothing, our buffer is ready
-                // }
-                //
-                // // clear old results
-                // try {
-                // while (os().receive(RESULT_PORT, 10, TimeUnit.MILLISECONDS)
-                // != null) {
-                // }
-                //
-                // } catch (Exception e) {
-                // // do nothing, our buffer is ready
-                // }
+               
             } else {
                 // check to see if we need to update our election clock:
                 if (electionMessage.data.electionNum >= electionNum) {
@@ -325,10 +304,7 @@ public class BullyTest extends AbstractTest {
                         resultMessage = os().receive(RESULT_PORT, 1,
                                 TimeUnit.MILLISECONDS).asType(ETuple.class);
 
-                        // if (resultMessage.data.address > os().address()) {
-                        // // call an election
-                        // callElection = true;
-                        // }
+                       
 
                         // see if it's a current election
                         if (resultMessage.data.electionNum >= electionNum) {
@@ -351,6 +327,19 @@ public class BullyTest extends AbstractTest {
                                 callElection = true;
                                 os().logger().info("(in run) need to call new eleciton: " + resultMessage);
                             }
+                        }
+                        else{
+                        	//this is from an old election
+                        	//we really only care about it because this may
+                        	//be from a new node, or some messages may not have
+                        	//made it to this guy (he thinks WWII is still going)
+                        	 if (resultMessage.data.address > os().address()) {
+	                             // call an election
+	                             callElection = true;
+	                             
+	                             //add if a new guy:
+	                             addMemberIfNeeded(resultMessage.source);
+                             }
                         }
                     }
                 } catch (NullPointerException e) {
@@ -375,6 +364,28 @@ public class BullyTest extends AbstractTest {
                 }
 
             }
+        }
+
+        /**
+         * this adds a member to our list if not already present
+         * @param member the new member to add
+         */
+		private void addMemberIfNeeded(int member) {
+	        //only want one thread to modify (currently there is only one thread of
+			//execution, but just in case we add more)
+			synchronized(members){
+				boolean found = false;
+				for(int i : members){
+					if(i == member){
+						found = true;
+						break;
+					}
+				}
+				
+				if(!found){
+					members.add(member);
+				}
+			}
         }
     }
 
@@ -414,8 +425,17 @@ public class BullyTest extends AbstractTest {
 
         sim.start();
 
+//        Thread.sleep(60000);
+//        sim.disconnect(router1.interfaces().get(0));
+        
         Thread.sleep(60000);
-        sim.disconnect(router1.interfaces().get(0));
+       
+        
+        final Node f = sim.buildNode().name("F").connections(router1).kernel(
+                sim.createUserKernel(new BullyProcess(members, initLeader))).create();
+
+//        final Node router3 = sim.buildNode(7).name("Router3").connections(
+//                router2, f).create();
 
         Thread.sleep(Long.MAX_VALUE);
 
