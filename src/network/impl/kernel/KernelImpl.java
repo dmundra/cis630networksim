@@ -13,6 +13,14 @@ import network.KnownPort;
 import network.Message;
 import network.Interface.DisconnectedException;
 
+/**
+ * KernelImpl for routers. The code below has two important features
+ * that is running the RIP algorithm to check for new nodes and
+ * a check message system to pass along messages that arrive in the
+ * router from one node and are going to another node.
+ * 
+ * @author Anthony Wittig
+ */
 public class KernelImpl extends AbstractKernel {
     private ConcurrentHashMap<Integer, KernelNode> routingTable = new ConcurrentHashMap<Integer, KernelNode>();
 	/** a list of the messages that need to be processed by the routing table */
@@ -24,10 +32,8 @@ public class KernelImpl extends AbstractKernel {
 	 * Shutdown router
 	 */
 	public void shutDown() throws InterruptedException {
-	    checkNeighbors.cancel();
-	    
-        logger().info("Shutting down");
-        
+	    checkNeighbors.cancel();	    
+        logger().info("Shutting down");        
         Thread.sleep(100);
 	}
 
@@ -187,7 +193,6 @@ public class KernelImpl extends AbstractKernel {
 			} else {
 				// see if the address is not us:
 				if (address() != info.getKey()) {
-					//if(isDebug) System.err.println(name() + " address, adding address == (" + address() + ", " + info.getKey() + ")");
 					// this might throw exception at runtime... I
 					// think that concurrentHashMap can do this
 					// though
@@ -196,13 +201,11 @@ public class KernelImpl extends AbstractKernel {
 					toAdd.setLink(link);
 					routingTable.put(info.getKey(), toAdd);
 					checkNewGuy = true;
-					//if(isDebug && name().equals("15") && info.getKey() == (18)) System.out.println("Debug- " + info.getKey() + " : " + info.getValue().getRoutingTable().toString());
 				}
 			}
 			
 			if(checkNewGuy){
-				for(Map.Entry<Integer, KernelNode> info2 : info.getValue().getRoutingTable().entrySet()){
-					
+				for(Map.Entry<Integer, KernelNode> info2 : info.getValue().getRoutingTable().entrySet()){					
 					checkAndAdd(info2, link);
 				}
 			}
