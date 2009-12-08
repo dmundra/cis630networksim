@@ -95,7 +95,7 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 			
 			// If you are the first you will send the commit request
 			if (iWantToCommit) {
-				os().logger().log(Level.INFO, "Message: {0}", "I " + os().address() + " Want To Commit");
+				os().logger().info("I want to Commit");	
 				RTuple token = RTuple.get(os().address(), true, false, false);
 				send(token);
 			}
@@ -119,22 +119,22 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 				// If you have got a acknowledgment of abort you are done
 				if(iWantToCommit) {					
 					if(token.accepts.contains(false)) {
-						os().logger().log(Level.INFO, "Someone disagreed, abort: {0}", token);
+						os().logger().log(Level.INFO, "Someone disagreed, Abort: {0}", token);
 						RTuple newToken = RTuple.get(os().address(), false, false, false);
 						send(newToken);
 					} else {
 						if(token.toCommit) {
-							os().logger().log(Level.INFO, "Everyone agreed, success: {0}", token);
+							os().logger().log(Level.INFO, "Everyone agreed, Success: {0}", token);
 							RTuple newToken = RTuple.get(os().address(), false, true, false);
 							send(newToken);
 						} else if(token.success) {
 							successCounts++;
 							counter++;
 							
-							os().logger().log(Level.INFO, "Message: {0}", "Successfully committed");							
+							os().logger().info("Successfully Committed");							
 							
 							if(counter>=GOAL) {
-								os().logger().info("Reached goal; signaling");
+								os().logger().info("Reached goal; Signaling");
 								goalSignal.countDown();
 							} else {
 								os().logger().info("Token is up for grabs");
@@ -144,11 +144,11 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 							}
 						} else {
 							counter++;
-							os().logger().log(Level.INFO, "Message: {0}", "Aborted!");	
-							os().logger().info("Reached goal; signaling");
+							os().logger().info("Aborted");
+							os().logger().info("Reached goal; Signaling");
 							
 							if(counter>=GOAL) {
-								os().logger().info("Reached goal; signaling");
+								os().logger().info("Reached goal; Signaling");
 								goalSignal.countDown();
 							} else {
 								os().logger().info("Token is up for grabs");
@@ -168,11 +168,11 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 							sendAccept(token, true);
 						}
 					} else if(token.success) {
-						os().logger().log(Level.INFO, "Message: {0}", "Good for you, releasing locks");
+						os().logger().info("Ya " + token.address + " succeded. Continue on!");
 						send(token);
 					} else if(token.upForGrabs) {
 						if(GRAB_TOKEN <= (rand.nextInt(10)+1)) {
-							os().logger().log(Level.INFO, "Message: {0}", "I " + os().address() + " Want To Commit");
+							os().logger().info("I want to Commit");	
 							this.iWantToCommit = true;
 							RTuple newToken = RTuple.get(os().address(), true, false, false);
 							send(newToken);
@@ -181,7 +181,7 @@ public class TokenRingTwoPhaseTest extends AbstractTest {
 							send(token);
 						}
 					} else {
-						os().logger().log(Level.INFO, "Message: {0}", "Oh " + token.address + " aborted. Continue on!");
+						os().logger().info("Oh " + token.address + " aborted. Continue on!");
 						send(token);
 					}
 				}

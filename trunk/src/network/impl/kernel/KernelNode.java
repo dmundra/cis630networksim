@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Each Kernel has a Node which contains the address data, no of hops, link.
+ * @author Anthony Wittig
  */
 public class KernelNode implements Serializable {
 
