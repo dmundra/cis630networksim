@@ -34,7 +34,8 @@ public class BullyTest extends AbstractTest {
         private int electionNumLastRequested = 0;
         private int elecitonNumLastReceived = 0;
 
-        BullyProcess(ArrayList<Integer> members, int leader) {
+        @SuppressWarnings("unchecked")
+		BullyProcess(ArrayList<Integer> members, int leader) {
             this.members = (ArrayList<Integer>) members.clone();
             this.leader = leader;
         }
@@ -378,13 +379,12 @@ public class BullyTest extends AbstractTest {
 	        //only want one thread to modify (currently there is only one thread of
 			//execution, but just in case we add more)
 			synchronized(members){
-				boolean found = false;
+				
 				for(int i : members){
 					if(i == member){
 						return false;
 					}
-				}
-				
+				}		
 				
 				members.add(member);
 				return true;
@@ -423,7 +423,8 @@ public class BullyTest extends AbstractTest {
 
         final Node router1 = sim.buildNode(6).name("Router1").connections(a, b, c).create();
 
-        final Node router2 = sim.buildNode(7).name("Router2").connections(
+        @SuppressWarnings("unused")
+		final Node router2 = sim.buildNode(7).name("Router2").connections(
                 router1, d, e).create();
 
         sim.start();
@@ -434,7 +435,8 @@ public class BullyTest extends AbstractTest {
         Thread.sleep(60000);
        
         
-        final Node f = sim.buildNode().name("F").connections(router1).kernel(
+        @SuppressWarnings("unused")
+		final Node f = sim.buildNode().name("F").connections(router1).kernel(
                 sim.createUserKernel(new BullyProcess(members, initLeader))).create();
 
 //        final Node router3 = sim.buildNode(7).name("Router3").connections(
@@ -447,7 +449,8 @@ public class BullyTest extends AbstractTest {
 
     public static class ETuple implements Serializable {
 
-        int address;
+		private static final long serialVersionUID = -31652L;
+		int address;
         int electionNum;
 
         public static ETuple get(int address, int electionNum) {
@@ -464,7 +467,8 @@ public class BullyTest extends AbstractTest {
 
     public static class BTuple implements Serializable {
 
-        boolean b1;
+		private static final long serialVersionUID = 931628L;
+		boolean b1;
         boolean b2;
 
         public static BTuple get(boolean b1, boolean b2) {

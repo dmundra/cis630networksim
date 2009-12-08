@@ -163,7 +163,10 @@ public interface OperatingSystem {
      * @author Luke Maurer
      */
     class DisconnectedException extends Exception {
-        public DisconnectedException() {
+
+		private static final long serialVersionUID = 64821736L;
+
+		public DisconnectedException() {
             this("Node is disconnected");
         }
         

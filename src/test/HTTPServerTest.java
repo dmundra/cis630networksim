@@ -11,6 +11,11 @@ import network.software.HTTPServer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+/**
+ * Simulates a HTTP server client model.
+ * @author Luke Maurer
+ *
+ */
 public class HTTPServerTest extends AbstractTest {
     private static final String LOCATION = "/index.html", CONTENT = "Hello world!";
     
