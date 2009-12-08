@@ -17,465 +17,415 @@ import org.testng.annotations.Test;
 
 public class BullyTest extends AbstractTest {
 
-    private static final long TIMEOUT = 0;
-    private static final long WAIT_FOR_LEADER_RESPONSE = 10;
-    private static final long WAIT_FOR_LEADER_RESPONSE_TO_ELECTION = WAIT_FOR_LEADER_RESPONSE * 2;
-    private static final long WAIT_FOR_NEW_LEADER_RESPONSE_TO_ELECTION = WAIT_FOR_LEADER_RESPONSE_TO_ELECTION * 2;
-    private static final Random rand = new Random();
+	private static final long TIMEOUT = 0;
+	private static final long WAIT_FOR_LEADER_RESPONSE = 10;
+	private static final long WAIT_FOR_LEADER_RESPONSE_TO_ELECTION = WAIT_FOR_LEADER_RESPONSE * 2;
+	private static final long WAIT_FOR_NEW_LEADER_RESPONSE_TO_ELECTION = WAIT_FOR_LEADER_RESPONSE_TO_ELECTION * 2;
+	private static final Random rand = new Random();
 
-    private class BullyProcess extends AbstractProcess {
+	private class BullyProcess extends AbstractProcess {
 
-        private static final int WORK_PORT = 49;
-        private static final int ELECTION_PORT = 50;
-        private static final int RESULT_PORT = 51;
-        private final ArrayList<Integer> members;
-        private int leader;
-        private int electionNum = 0;
-        private int electionNumLastRequested = 0;
-        private int elecitonNumLastReceived = 0;
+		private static final int WORK_PORT = 49;
+		private static final int ELECTION_PORT = 50;
+		private static final int RESULT_PORT = 51;
+		private final ArrayList<Integer> members;
+		private int leader;
+		private int electionNum = 0;
+		private int electionNumLastRequested = 0;
+		private int elecitonNumLastReceived = 0;
+		private boolean iShouldBeLeader = true;
 
-        @SuppressWarnings("unchecked")
+		@SuppressWarnings("unchecked")
 		BullyProcess(ArrayList<Integer> members, int leader) {
-            this.members = (ArrayList<Integer>) members.clone();
-            this.leader = leader;
-        }
+			this.members = (ArrayList<Integer>) members.clone();
+			this.leader = leader;
+		}
 
-        /**
-         * sends a message to the leader. Returns true if we've received a
-         * response
-         *
-         * @return true if the leader responds, false otherwise
-         * @throws InterruptedException
-         */
-        private boolean sendToLeader() throws InterruptedException {
+		/**
+		 * sends a message to the leader. Returns true if we've received a
+		 * response
+		 * 
+		 * @return true if the leader responds, false otherwise
+		 * @throws InterruptedException
+		 */
+		private boolean sendToLeader() throws InterruptedException {
 
-            // see if we are not the leader:
-            if (os().address() != leader) {
+			// see if we are not the leader:
+			if (os().address() != leader) {
 
-                os().logger().log(Level.INFO, "Sending info to my leader: {0}", leader);
-                try {
-                    os().send(leader, WORK_PORT, WORK_PORT, "are you there?");
-                } catch (DisconnectedException e) {
-                    os().logger().info("Oops. I've been disconnected.");
-                }
+				os().logger().log(Level.INFO, "Sending info to my leader: {0}",
+				        leader);
+				try {
+					os().send(leader, WORK_PORT, WORK_PORT, "are you there?");
+				} catch (DisconnectedException e) {
+					os().logger().info("Oops. I've been disconnected.");
+				}
 
-                // now get the response:
-                try {
-                    Message<String> message = os().receive(WORK_PORT,
-                            WAIT_FOR_LEADER_RESPONSE, TimeUnit.SECONDS).asType(
-                            String.class);
-                    os().logger().log(Level.INFO, "Got info back from my leader: {0}",
-                            message.source);
-                } catch (Exception e) {
-                    // we didn't get a response, call an election:
-                    return false;
-                }
-            } else {
-                try {
-                    while (true) {
-                        Message<String> message = os().receive(WORK_PORT, 1,
-                                TimeUnit.MILLISECONDS).asType(String.class);
-                        
-                        os().logger().info("I am the leader, responding to " + message.source);
+				// now get the response:
+				try {
+					Message<String> message = os().receive(WORK_PORT,
+					        WAIT_FOR_LEADER_RESPONSE, TimeUnit.SECONDS).asType(
+					        String.class);
+					os().logger()
+					        .log(Level.INFO,
+					                "Got info back from my leader: {0}",
+					                message.source);
+				} catch (Exception e) {
+					// we didn't get a response, call an election:
+					return false;
+				}
+			} else {
+				try {
+					while (true) {
+						Message<String> message = os().receive(WORK_PORT, 1,
+						        TimeUnit.MILLISECONDS).asType(String.class);
 
-                        try {
-                            os().send(message.source, WORK_PORT, WORK_PORT,
-                                    "Hi! I am the leader");
-                        } catch (DisconnectedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                } catch (Exception e) {
-                    // We have nothing to do restart
-                }
-            }
+						os().logger().info(
+						        "I am the leader, responding to "
+						                + message.source);
 
-            return true;
+						try {
+							os().send(message.source, WORK_PORT, WORK_PORT,
+							        "Hi! I am the leader");
+						} catch (DisconnectedException e) {
+							e.printStackTrace();
+						}
+					}
+				} catch (Exception e) {
+					// We have nothing to do restart
+				}
+			}
 
-        }
+			return true;
 
-        private BTuple sendElectionP1(Message<ETuple> electionMessage)
-                throws InterruptedException {
+		}
 
-            os().logger().info(
-                    "Election called, start msg is null: " + (electionMessage == null));
+		private void sendElectionP1(Message<ETuple> electionMessage)
+		        throws InterruptedException {
 
-            if (electionMessage == null) {
-                // we must be starting an election, not responding to an
-                // ongoing
-                // election
-                ++electionNum;
+			// make sure we have this guy in our members:
+			addMemberIfNeeded(electionMessage.source);
 
-               
-            } else {
-                // check to see if we need to update our election clock:
-                if (electionMessage.data.electionNum >= electionNum) {
-                    os().logger().info(
-                            "my election num: " + electionNum + ", new election num: " + electionMessage.data.electionNum);
-                    electionNum = electionMessage.data.electionNum;
+			// check to see if we need to update our election clock:
+			if (electionMessage.data.electionNum > electionNum) {
+				os().logger().info(
+				        "my election num: " + electionNum
+				                + ", new election num: "
+				                + electionMessage.data.electionNum);
 
-                } else {
-                    // this means that it's old:
-                    os().logger().info(
-                            "this is an old election, ignore election process");
-                    return BTuple.get(false, false);
-                }
-            }
+				setElectionNum(electionMessage.data.electionNum);
+			}
 
-            if (electionNumLastRequested < electionNum) {
-                electionNumLastRequested = electionNum;
-                for (Integer i : members) {
-                    if (i < os().address()) {
-                        try {
-                            os().send(i, ELECTION_PORT, ELECTION_PORT,
-                                    ETuple.get(os().address(), electionNum));
-                        } catch (DisconnectedException e) {
-                            os().logger().info("Oops. I've been disconnected.");
-                        }
-                    }
-                }
-            }
+			// propagate election to superiors (but only once per election)
+			callElection(false);
 
+			if (electionMessage.data.address < os().address()) {
+				// we assume that they are responding to us
 
-            // see if anyone responds that is higher than us, respond to
-            // lowers:
-            boolean meLead = elecitonNumLastReceived < electionNum;
+				// see if this is a newer election:
+				if (electionMessage.data.electionNum > electionNum) {
+					// this should never be:
+					throw new RuntimeException("error in our logic");
+				} else if (electionMessage.data.electionNum == electionNum) {
+					// this is a current election, they responded, so we
+					// can't be the leader:
+					iShouldBeLeader = false;
+				}
+			} else {
+				// we are their superior, respond (regardless of the
+				// election number)
+				try {
+					os().send(electionMessage.source, ELECTION_PORT,
+					        ELECTION_PORT,
+					        ETuple.get(os().address(), electionNum));
+				} catch (DisconnectedException e) {
+					os().logger().info("Oops. I've been disconnected.");
+				}
+			}
 
-            // see if we are responding to an election, and what we should
-            // do:
-            if (electionMessage != null) {
-                // we assume that they are lower than us as they responded
-                // to us
-                if (electionMessage.data.address < os().address()) {
+		}
 
-                    // see if this is a newer election:
-                    if (electionMessage.data.electionNum > electionNum) {
-                        // this should never be:
-                        throw new RuntimeException("error in our logic");
-                    } else {
-                        return BTuple.get(false, meLead);
-                    }
-                } else {
+		private void callElection(boolean newElection)
+		        throws InterruptedException {
 
-                    try {
-                        os().send(electionMessage.source, ELECTION_PORT,
-                                ELECTION_PORT,
-                                ETuple.get(os().address(), electionNum));
-                    } catch (DisconnectedException e) {
-                        // not sure what to do here...
-                    }
-                }
-            }
+			if (newElection) {
+				setElectionNum(electionNum + 1);
+			}
 
-            try {
-                while (meLead) {
-                    Message<ETuple> message = os().receive(ELECTION_PORT,
-                            WAIT_FOR_LEADER_RESPONSE_TO_ELECTION,
-                            TimeUnit.SECONDS).asType(ETuple.class);
+			if (electionNumLastRequested < electionNum) {
+				electionNumLastRequested = electionNum;
+				for (Integer i : members) {
+					if (i < os().address()) {
+						try {
+							os().send(i, ELECTION_PORT, ELECTION_PORT,
+							        ETuple.get(os().address(), electionNum));
+						} catch (DisconnectedException e) {
+							os().logger().info("Oops. I've been disconnected.");
+						}
+					}
+				}
+			} else if (newElection) {
+				throw new RuntimeException("error in our logic");
+			}
 
-                    // see if this is a newer election:
-                    if (message.data.electionNum > electionNum) {
-                        // we have been working on an old election:
-                        // let's go with the new
-                        os().logger().info(
-                                "we've been working on an old election " + message.data.address);
-                        return sendElectionP1(message);
-                    } else if (message.data.electionNum < electionNum) {
-                        // we can ignore this message
-                        os().logger().info(
-                                "we got an old message, ignoring it " + message.data.address);
-                    } else {
-                        if (message.data.address > os().address()) {
-                            // respond with the "I've voted" message
-                            os().send(message.source, ELECTION_PORT,
-                                    ELECTION_PORT,
-                                    ETuple.get(os().address(), electionNum));
+			if (newElection) {
+				// give people some time to respond:
+				Thread.sleep(WAIT_FOR_LEADER_RESPONSE_TO_ELECTION);
+			}
 
-                            os().logger().info(
-                                    "responding to a inferior chaps request to vote: " + message.data.address);
-                        } else {
-                            // we know that we aren't the leader, someone else
-                            // is
-                            meLead = false;
+		}
 
-                            os().logger().info(
-                                    "someone higher than I responded: " + message.data.address);
-                        }
-                    }
+		public boolean electionP2() throws InterruptedException {
 
-                }
-            } catch (Exception e) {
-            }
+			if (elecitonNumLastReceived < electionNum) {
 
-            return BTuple.get(true, meLead);
+				if (iShouldBeLeader) {
+					os().logger().info(
+					        "I won! I am the leader - " + os().address());
+					leader = os().address();
+					// we win!
+					for (int j = 0; j < members.size(); ++j) {
+						Integer i = members.get(j);
 
-        }
+						try {
+							os().send(i, RESULT_PORT, RESULT_PORT,
+							        ETuple.get(os().address(), electionNum));
+						} catch (DisconnectedException e) {
+							os().logger().info("Oops. I've been disconnected.");
+						}
 
-        public boolean sendElectionP2(boolean meLead)
-                throws InterruptedException {
+					}
 
-            if (elecitonNumLastReceived < electionNum) {
+					// don't send out again:
+					elecitonNumLastReceived = electionNum;
+				} else {
+					// someone else should have won,
+					try {
+						Message<ETuple> message = os().receive(RESULT_PORT,
+						        WAIT_FOR_NEW_LEADER_RESPONSE_TO_ELECTION,
+						        TimeUnit.SECONDS).asType(ETuple.class);
 
-                if (meLead) {
-                    os().logger().info("I won! I am the leader - " + os().address());
-                    leader = os().address();
-                    // we win!
-                    for (int j = 0; j < members.size(); ++j) {
-                        Integer i = members.get(j);
+						os().logger().info(
+						        "I am not the leader, but this guys says he is - "
+						                + message.data.address);
 
-                        try {
-                            os().send(i, RESULT_PORT, RESULT_PORT,
-                                    ETuple.get(os().address(), electionNum));
-                        } catch (DisconnectedException e) {
-                            os().logger().info("Oops. I've been disconnected.");
-                        }
+						leader = message.data.address;
+						elecitonNumLastReceived = electionNum;
 
-                    }
-                } else {
-                    // someone else should have won,
-                    try {
-                        Message<ETuple> message = os().receive(RESULT_PORT,
-                                WAIT_FOR_NEW_LEADER_RESPONSE_TO_ELECTION,
-                                TimeUnit.SECONDS).asType(ETuple.class);
-
-                        os().logger().info(
-                                "I am not the leader, but this guys says he is - " + message.data.address);
-
-                        leader = message.data.address;
-                        elecitonNumLastReceived = electionNum;
-
-                    } catch (NullPointerException e) {
-                        // we didn't get a response, call another election?
-                        return false;
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        protected void run() throws InterruptedException {
-
-            Thread.sleep(8000);
-
-            // remove ourselves from our list:
-            for (int i = 0; i < members.size(); ++i) {
-                if (members.get(i) == os().address()) {
-                    members.remove(i);
-                    break;
-                }
-            }
-
-            while (true) {
-
-                if (os().address() != leader) {
-                    Thread.sleep(1000 * rand.nextInt(4));
-                }
-
-                boolean callElection = false;
-                Message<ETuple> electionMessage = null;
-                Message<ETuple> resultMessage = null;
-                // see if an election is taking place or someone else has said
-                // that
-                // they won, in either case, we need to do an election:
-                try {
-
-                    // clear off our buffer until we see that we need an
-                    // election:
-                    while (!callElection) {
-
-                        electionMessage = os().receive(ELECTION_PORT, 1,
-                                TimeUnit.MILLISECONDS).asType(ETuple.class);
-
-                        if (electionMessage.data.electionNum >= electionNum) {
-                            electionNum = electionMessage.data.electionNum;
-                            // call an election
-                            callElection = true;
-
-                            os().logger().info("(in run) need to respond to a message: " + electionMessage.data);
-                        }
-                    }
-                } catch (NullPointerException e) {
-                    // good, let's keep going
-                }
-
-                try {
-                    //pop off all results
-                    while (true) {
-                        resultMessage = os().receive(RESULT_PORT, 1,
-                                TimeUnit.MILLISECONDS).asType(ETuple.class);
-
-                       
-
-                        // see if it's a current election
-                        if (resultMessage.data.electionNum >= electionNum) {
-                            electionNum = resultMessage.data.electionNum;
-                            // Call an election if we get a message from a
-                            // inferior
-                            // node
-                            if (resultMessage.data.address < os().address()) {
-                                // If its superior than us we check if it is
-                                // superior than our leader
-                                if (resultMessage.data.address < leader) {
-                                    leader = resultMessage.data.address;
-                                    //if we set call election on a previous loop, reset:
-                                    callElection = false;
-
-                                    os().logger().info(
-                                            "(in run) I am not the leader, but this guys says he is - " + leader);
-                                }
-                            } else {
-                                callElection = true;
-                                os().logger().info("(in run) need to call new eleciton: " + resultMessage);
-                            }
-                        }
-                        else{
-                        	//this is from an old election
-                        	//we really only care about it because this may
-                        	//be from a new node, or some messages may not have
-                        	//made it to this guy (he thinks WWII is still going)
-                        	 if (resultMessage.data.address > os().address()) {
-	                             
-	                             
-	                             //add if a new guy:
-	                             if(addMemberIfNeeded(resultMessage.source)){
-	                            	// call an election
-		                             callElection = true;
-	                             }
-                             }
-                        }
-                    }
-                } catch (NullPointerException e) {
-                }
-
-                if (callElection || !sendToLeader()) {
-                    os().logger().info(
-                            "Election code from run() electionMessage is null: " + (electionMessage == null));
-
-                    while (true) {
-                        BTuple ret = sendElectionP1(electionMessage);
-                        if (ret.b1) {
-                            if (sendElectionP2(ret.b2)) {
-                                break;
-                            } else {
-                                os().logger().info("didn't make it out of p2");
-                                electionMessage = null;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-
-            }
-        }
-
-        /**
-         * this adds a member to our list if not already present
-         * @param member the new member to add
-         * @return true if we add, false otherwise
-         */
-		private boolean addMemberIfNeeded(int member) {
-	        //only want one thread to modify (currently there is only one thread of
-			//execution, but just in case we add more)
-			synchronized(members){
-				
-				for(int i : members){
-					if(i == member){
+					} catch (NullPointerException e) {
+						// we didn't get a response, call another election?
+						os().logger().info(
+						        "no buddy said they were the leader...");
 						return false;
 					}
-				}		
-				
+				}
+			}
+
+			return true;
+		}
+
+		/**
+		 * this adds a member to our list if not already present
+		 * 
+		 * @param member
+		 *            the new member to add
+		 * @return true if we add, false otherwise
+		 */
+		private boolean addMemberIfNeeded(int member) {
+			// only want one thread to modify (currently there is only one
+			// thread of
+			// execution, but just in case we add more)
+			synchronized (members) {
+
+				for (int i : members) {
+					if (i == member) {
+						return false;
+					}
+				}
+
 				members.add(member);
 				return true;
 			}
-        }
-    }
+		}
 
-    @Test(description = "Test with 5 nodes connected by two routers", timeOut = TIMEOUT)
-    public void test5Nodes() throws InterruptedException {
+		private void electionP1() throws InterruptedException {
+			electionP1(0);
+		}
 
-        final Simulator sim = SimulatorFactory.instance().createSimulator();
+		private void electionP1(long timeOut) throws InterruptedException {
 
-        final ArrayList<Integer> members = new ArrayList<Integer>();
-        members.add(1);
-        members.add(2);
-        members.add(3);
-        members.add(4);
-        members.add(5);
+			while (true) {
 
-        int initLeader = 0;
+				try {
+					// pop off all the messages until we get to one that
+					// requires
+					// work:
 
-        final Node a = sim.buildNode(1).name("A").kernel(
-                 sim.createUserKernel(new BullyProcess(members, initLeader))).create();
+					while (true) {
+						Message<ETuple> message = os().receive(ELECTION_PORT,
+						        timeOut, TimeUnit.SECONDS).asType(ETuple.class);
 
-        final Node b = sim.buildNode(2).name("B").kernel(
-                 sim.createUserKernel(new BullyProcess(members, initLeader))).create();
+						// this will set our iShouldBeLeader
+						sendElectionP1(message);
 
-        final Node c = sim.buildNode(3).name("C").kernel(
-                sim.createUserKernel(new BullyProcess(members, initLeader))).create();
+						timeOut = WAIT_FOR_LEADER_RESPONSE_TO_ELECTION;
+					}
+				} catch (Exception e) {
+					// ok we don't have any more messages
+				}
 
-        final Node d = sim.buildNode(4).name("D").kernel(
-                 sim.createUserKernel(new BullyProcess(members, initLeader))).create();
+				if (!electionP2()) {
+					// we didn't make it, call a new election:
 
-        final Node e = sim.buildNode(5).name("E").kernel(
-                 sim.createUserKernel(new BullyProcess(members, initLeader))).create();
+					callElection(true);
+					electionP1(WAIT_FOR_LEADER_RESPONSE_TO_ELECTION);
+				} else {
+					// good, we are done:
+					break;
+				}
 
-        final Node router1 = sim.buildNode(6).name("Router1").connections(a, b, c).create();
+			}
 
-        @SuppressWarnings("unused")
+		}
+
+		private void setElectionNum(int electionNum) {
+
+			if (electionNum <= this.electionNum) {
+				throw new RuntimeException("error in our logic");
+			}
+
+			this.electionNum = electionNum;
+			iShouldBeLeader = true;
+
+		}
+
+		protected void run() throws InterruptedException {
+
+			Thread.sleep(7000);
+
+			// remove ourselves from our list:
+			for (int i = 0; i < members.size(); ++i) {
+				if (members.get(i) == os().address()) {
+					members.remove(i);
+					break;
+				}
+			}
+
+			long p1Wait = 0;
+
+			while (true) {
+
+				if (os().address() != leader) {
+					Thread.sleep(1000 * rand.nextInt(4) + 1000);
+				}
+
+				// checks our election port for any work
+				electionP1(p1Wait);
+				p1Wait = 0;
+				// checks our results port for any work
+				electionP2();
+
+				if (!sendToLeader()) {
+					os().logger().info("Election code from run()");
+
+					// call a new election
+					callElection(true);
+					p1Wait = WAIT_FOR_LEADER_RESPONSE_TO_ELECTION;
+				}
+
+			}
+		}
+
+	}
+
+	@Test(description = "Test with 5 nodes connected by two routers", timeOut = TIMEOUT)
+	public void test5Nodes() throws InterruptedException {
+
+		final Simulator sim = SimulatorFactory.instance().createSimulator();
+
+		final ArrayList<Integer> members = new ArrayList<Integer>();
+		members.add(1);
+		members.add(2);
+		members.add(3);
+		members.add(4);
+		members.add(5);
+
+		int initLeader = 1;
+
+		final Node a = sim.buildNode(1).name("A").kernel(
+		        sim.createUserKernel(new BullyProcess(members, initLeader)))
+		        .create();
+
+		final Node b = sim.buildNode(2).name("B").kernel(
+		        sim.createUserKernel(new BullyProcess(members, initLeader)))
+		        .create();
+
+		final Node c = sim.buildNode(3).name("C").kernel(
+		        sim.createUserKernel(new BullyProcess(members, initLeader)))
+		        .create();
+
+		final Node d = sim.buildNode(4).name("D").kernel(
+		        sim.createUserKernel(new BullyProcess(members, initLeader)))
+		        .create();
+
+		final Node e = sim.buildNode(5).name("E").kernel(
+		        sim.createUserKernel(new BullyProcess(members, initLeader)))
+		        .create();
+
+		final Node router1 = sim.buildNode(6).name("Router1").connections(a, b,
+		        c).create();
+
+		@SuppressWarnings("unused")
 		final Node router2 = sim.buildNode(7).name("Router2").connections(
-                router1, d, e).create();
+		        router1, d, e).create();
 
-        sim.start();
+		sim.start();
 
-//        Thread.sleep(60000);
-//        sim.disconnect(router1.interfaces().get(0));
-        
-        Thread.sleep(60000);
-       
-        
-        @SuppressWarnings("unused")
+		 Thread.sleep(20000);
+		 sim.disconnect(router1.interfaces().get(0));
+
+		Thread.sleep(20000);
+		@SuppressWarnings("unused")
 		final Node f = sim.buildNode().name("F").connections(router1).kernel(
-                sim.createUserKernel(new BullyProcess(members, initLeader))).create();
+		        sim.createUserKernel(new BullyProcess(members, 0))).create();
 
-//        final Node router3 = sim.buildNode(7).name("Router3").connections(
-//                router2, f).create();
+		// final Node router3 = sim.buildNode(7).name("Router3").connections(
+		// router2, f).create();
 
-        Thread.sleep(Long.MAX_VALUE);
+		Thread.sleep(Long.MAX_VALUE);
 
-        sim.destroy();
-    }
+		sim.destroy();
+	}
 
-    public static class ETuple implements Serializable {
+	public static class ETuple implements Serializable {
 
 		private static final long serialVersionUID = -31652L;
 		int address;
-        int electionNum;
+		int electionNum;
 
-        public static ETuple get(int address, int electionNum) {
-            ETuple ret = new ETuple();
-            ret.address = address;
-            ret.electionNum = electionNum;
-            return ret;
-        }
+		public static ETuple get(int address, int electionNum) {
+			ETuple ret = new ETuple();
+			ret.address = address;
+			ret.electionNum = electionNum;
+			return ret;
+		}
 
-        public String toString() {
-            return "address:" + address + " electionNum:" + electionNum;
-        }
-    }
+		public String toString() {
+			return "address:" + address + " electionNum:" + electionNum;
+		}
+	}
 
-    public static class BTuple implements Serializable {
+	public static class BTuple implements Serializable {
 
 		private static final long serialVersionUID = 931628L;
 		boolean b1;
-        boolean b2;
+		boolean b2;
 
-        public static BTuple get(boolean b1, boolean b2) {
-            BTuple ret = new BTuple();
-            ret.b1 = b1;
-            ret.b2 = b2;
-            return ret;
-        }
-    }
+		public static BTuple get(boolean b1, boolean b2) {
+			BTuple ret = new BTuple();
+			ret.b1 = b1;
+			ret.b2 = b2;
+			return ret;
+		}
+	}
 }
