@@ -32,6 +32,7 @@ public class HTTPServerTest extends AbstractTest {
         
         final Node client = sim.buildNode(2)
             .name("Client")
+            .kernel(new TrivialKernel())
             .connections(server)
             .create();
         

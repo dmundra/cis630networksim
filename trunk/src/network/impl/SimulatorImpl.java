@@ -206,6 +206,9 @@ class SimulatorImpl implements Simulator {
     }
     
     <I, T extends SimulationObject<I>> T checkOwnership(I node) {
+        if (node == null)
+            throw new NullPointerException();
+        
         if (!(node instanceof SimulationObject<?> &&
                 ((SimulationObject<?>) node).sim == this))
             throw new IllegalArgumentException(
