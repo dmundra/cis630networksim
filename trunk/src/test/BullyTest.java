@@ -16,6 +16,9 @@ import network.OperatingSystem.DisconnectedException;
 import network.UserKernel;
 import org.testng.annotations.Test;
 
+/**
+ * this is a test for running a bully algorith over a few nodes
+ */
 public class BullyTest extends AbstractTest {
 
     private static final long TIMEOUT = 0;
@@ -24,6 +27,9 @@ public class BullyTest extends AbstractTest {
     private static final long WAIT_FOR_NEW_LEADER_RESPONSE_TO_ELECTION = WAIT_FOR_LEADER_RESPONSE_TO_ELECTION * 2;
     private static final Random rand = new Random();
 
+    /**
+     * this is the process that all of the operating systems will run
+     */
     private class BullyProcess extends AbstractProcess {
 
         private static final int WORK_PORT = 49;
@@ -36,6 +42,11 @@ public class BullyTest extends AbstractTest {
         private int elecitonNumLastReceived = 0;
         private boolean iShouldBeLeader = true;
 
+        /**
+         * takes in the list of current members and the current leader
+         * @param members the list of members
+         * @param leader the current leader
+         */
         @SuppressWarnings("unchecked")
         BullyProcess(ArrayList<Integer> members, int leader) {
             this.members = (ArrayList<Integer>) members.clone();
@@ -97,57 +108,13 @@ public class BullyTest extends AbstractTest {
 
         }
 
-        private void sendElectionP1(Message<ETuple> electionMessage)
-                throws InterruptedException {
-
-            if (electionMessage.source == os().address()) {
-                //this was one we sent to a dead node:
-                removeMemberIfNeeded(os().address());
-                //we are done:
-                return;
-            }
-
-
-            // make sure we have this guy in our members:
-            addMemberIfNeeded(electionMessage.source);
-
-            // check to see if we need to update our election clock:
-            if (electionMessage.data.electionNum > electionNum) {
-                os().logger().info(
-                        "my election num: " + electionNum + ", new election num: " + electionMessage.data.electionNum);
-
-                setElectionNum(electionMessage.data.electionNum);
-            }
-
-            // propagate election to superiors (but only once per election)
-            callElection(false);
-
-            if (electionMessage.data.address < os().address()) {
-                // we assume that they are responding to us
-
-                if (electionMessage.data.electionNum == electionNum) {
-                    // this is a current election, they responded, so we
-                    // can't be the leader:
-                    iShouldBeLeader = false;
-                }
-            } else {
-                // we are their superior, respond (regardless of the
-                // election number)
-                try {
-
-
-
-                    os().send(electionMessage.source, ELECTION_PORT,
-                            ELECTION_PORT,
-                            ETuple.get(os().address(), electionNum));
-                } catch (DisconnectedException e) {
-                    os().logger().info("Oops. I've been disconnected.");
-                }
-            }
-
-
-        }
-
+        /**
+         * calls an election by sending a request to vote to all superiors
+         * @param newElection if true, we'll increment our election clock and
+         *        send our messages. If false, we'll send our messages only if
+         *        we've never done so (for this election)
+         * @throws InterruptedException
+         */
         private void callElection(boolean newElection)
                 throws InterruptedException {
 
@@ -180,8 +147,132 @@ public class BullyTest extends AbstractTest {
 
         }
 
-        public boolean electionP2() throws InterruptedException {
+        /**
+         * pops off all of our election messages (dealing with them) and starts
+         * phase 2.
+         * @param timeOut initial time out we should use when popping messages
+         * @throws InterruptedException
+         */
+        private void electionP1(long timeOut) throws InterruptedException {
 
+
+            boolean needToResendWinningMessage = false;
+            try {
+                // pop off all the messages until we get to one that
+                // requires
+                // work:
+                while (true) {
+                    Message<ETuple> message = os().receive(ELECTION_PORT,
+                            timeOut, TimeUnit.MILLISECONDS).asType(ETuple.class);
+
+                    // this will set our iShouldBeLeader
+                    if (sendElectionP1(message)) {
+                        needToResendWinningMessage = true;
+                    }
+
+                    timeOut = WAIT_FOR_LEADER_RESPONSE_TO_ELECTION;
+                }
+            } catch (Exception e) {
+                // ok we don't have any more messages, move on
+            }
+            if (!electionP2(needToResendWinningMessage)) {
+                // we didn't make it, call a new election:
+
+                callElection(true);
+                electionP1(WAIT_FOR_LEADER_RESPONSE_TO_ELECTION);
+            }
+
+
+        }
+
+        /**
+         * this handles sending response messages from our phase 1 (voting)
+         * @param electionMessage the message we've received
+         * @return true if we think that a victory message should be sent (if we are the winner)
+         * @throws InterruptedException
+         */
+        private boolean sendElectionP1(Message<ETuple> electionMessage)
+                throws InterruptedException {
+
+            if (electionMessage.source == os().address()) {
+                //this was one we sent to a dead node:
+                removeMemberIfNeeded(os().address());
+                //we are done:
+                return false;
+            }
+
+
+            // make sure we have this guy in our members:
+            addMemberIfNeeded(electionMessage.source);
+
+            // check to see if we need to update our election clock:
+            if (electionMessage.data.electionNum > electionNum) {
+                os().logger().info(
+                        "my election num: " + electionNum + ", new election num: " + electionMessage.data.electionNum);
+
+                setElectionNum(electionMessage.data.electionNum);
+            }
+
+            // propagate election to superiors (but only once per election)
+            callElection(false);
+
+            if (electionMessage.data.address < os().address()) {
+                // we assume that they are responding to a message we sent
+
+                if (electionMessage.data.electionNum == electionNum) {
+                    // this is a current election, they responded, so we
+                    // can't be the leader:
+                    iShouldBeLeader = false;
+                }
+            } else {
+                // we are their superior, respond (regardless of the
+                // election number)
+                try {
+                    os().send(electionMessage.source, ELECTION_PORT,
+                            ELECTION_PORT,
+                            ETuple.get(os().address(), electionNum));
+
+                    //since they may be late bloomers, we'll tell them we are
+                    //the leader (if we are)
+                    return true;
+
+                } catch (DisconnectedException e) {
+                    os().logger().info("Oops. I've been disconnected.");
+                }
+            }
+
+            return false;
+
+
+        }
+
+        /**
+         * handles our phase 2 (sending victory or receiving victory message)
+         * @return false if we were expecting a victory message, but never got it,
+         *         true otherwise.
+         * @throws InterruptedException
+         */
+        public boolean electionP2() throws InterruptedException {
+            return electionP2(false);
+        }
+
+        /**
+         * handles our phase 2 (sending victory or receiving victory message)
+         * @param resendWinningMessage if true, we'll resend the victory message
+         *        if we were the winner from the current election
+         * @return false if we were expecting a victory message, but never got it,
+         *         true otherwise.
+         * @throws InterruptedException
+         */
+        public boolean electionP2(boolean resendWinningMessage) throws InterruptedException {
+
+
+            if (resendWinningMessage && elecitonNumLastReceived == electionNum &&
+                    iShouldBeLeader && leader == os().address()) {
+
+                //we need to resend our victory (this will be reupdated in the next block):
+                --elecitonNumLastReceived;
+            }
 
             if (elecitonNumLastReceived < electionNum) {
 
@@ -202,7 +293,7 @@ public class BullyTest extends AbstractTest {
 
                     }
 
-                    // don't send out again:
+                    // don't send out again (unless we really need to):
                     elecitonNumLastReceived = electionNum;
                 } else {
                     // someone else should have won,
@@ -237,22 +328,22 @@ public class BullyTest extends AbstractTest {
                         return false;
                     }
                 }
-            }else{
+            } else {
                 //see if we have any new election messages
-                try{
-                Message<ETuple> message = os().receive(RESULT_PORT,
-                                    1,
-                                    TimeUnit.MILLISECONDS).asType(ETuple.class);
+                try {
+                    Message<ETuple> message = os().receive(RESULT_PORT,
+                            1,
+                            TimeUnit.MILLISECONDS).asType(ETuple.class);
 
-                if (message.data.electionNum >= electionNum) {
-                    //something went wrong, call a new election:
-                    if(message.data.electionNum > electionNum){
-                        setElectionNum(message.data.electionNum);
+                    if (message.data.electionNum >= electionNum) {
+                        //something went wrong, call a new election:
+                        if (message.data.electionNum > electionNum) {
+                            setElectionNum(message.data.electionNum);
+                        }
+                        callElection(false);
                     }
-                    callElection(false);
-                }
 
-                }catch(NullPointerException e){
+                } catch (NullPointerException e) {
                     //nothing to see, move along
                 }
             }
@@ -261,10 +352,8 @@ public class BullyTest extends AbstractTest {
         }
 
         /**
-         * this adds a member to our list if not already present
-         *
-         * @param member
-         *            the new member to add
+         * adds a member to our list if not already present
+         * @param member the new member to add
          * @return true if we add, false otherwise
          */
         private boolean addMemberIfNeeded(int member) {
@@ -287,6 +376,11 @@ public class BullyTest extends AbstractTest {
 
         }
 
+        /**
+         * removes a member from our list
+         * @param member the member to remove
+         * @return true if we remove, false otherwise
+         */
         private boolean removeMemberIfNeeded(int member) {
 
 
@@ -303,49 +397,12 @@ public class BullyTest extends AbstractTest {
 
         }
 
-        private void electionP1() throws InterruptedException {
-            electionP1(0);
-        }
-
-        private void electionP1(long timeOut) throws InterruptedException {
-
-
-            try {
-                // pop off all the messages until we get to one that
-                // requires
-                // work:
-
-
-                while (true) {
-
-
-                    Message<ETuple> message = os().receive(ELECTION_PORT,
-                            timeOut, TimeUnit.MILLISECONDS).asType(ETuple.class);
-
-                    // this will set our iShouldBeLeader
-                    sendElectionP1(message);
-
-                    timeOut = WAIT_FOR_LEADER_RESPONSE_TO_ELECTION;
-                }
-            } catch (Exception e) {
-                // ok we don't have any more messages
-//                                   
-            }
-
-            if (!electionP2()) {
-                // we didn't make it, call a new election:
-
-                callElection(true);
-                electionP1(WAIT_FOR_LEADER_RESPONSE_TO_ELECTION);
-                //break;
-            } else {
-                // good, we are done:
-                //break;
-            }
-
-
-        }
-
+        /**
+         * this sets our election number to the given input if it is less than
+         * or equal to our current election number. It also resets our variable
+         * that helps determine if we are the winner of this current election
+         * @param electionNum the new election number
+         */
         private void setElectionNum(int electionNum) {
 
             if (electionNum <= this.electionNum) {
@@ -357,8 +414,13 @@ public class BullyTest extends AbstractTest {
 
         }
 
+        /**
+         * this is the method that the OS will call on us
+         * @throws InterruptedException
+         */
         protected void run() throws InterruptedException {
 
+            //let routers get set up
             Thread.sleep(2000);
 
             // remove ourselves from our list:
@@ -369,37 +431,33 @@ public class BullyTest extends AbstractTest {
                 }
             }
 
+            //initial wait for looking for election messages
             long p1Wait = 0;
 
+            //loop forever
             while (true) {
 
-
-
+                //if we aren't the leader, let's sleep for a time
                 if (os().address() != leader) {
                     Thread.sleep(1000 * rand.nextInt(2) + 1000);
                 }
 
-                // checks our election port for any work
+                //checks our election port for any work, moves us on to phase 2
+                //if needed
                 electionP1(p1Wait);
+                //resets our wait time (in case it has been changed on the last
+                //iteration
                 p1Wait = 0;
 
 
-
-                // checks our results port for any work
-                electionP2();
-
-
+                //communicate with our leader
                 if (!sendToLeader()) {
-
-
-
-
-                    // call a new election
+                    //our leader didn't respond!
+                    //call a new election
                     callElection(true);
+                    //for next iteration:
                     p1Wait = WAIT_FOR_LEADER_RESPONSE_TO_ELECTION;
                 }
-
-
             }
         }
     }
@@ -409,13 +467,18 @@ public class BullyTest extends AbstractTest {
         new BullyTest().test5Nodes();
     }
 
+    /**
+     * this test starts out with 5 nodes and two routers. We kill off the leader
+     * and add in a new node to observe the behavior
+     * @throws InterruptedException
+     */
     @Test(description = "Test with 5 nodes connected by two routers", timeOut = TIMEOUT)
     public void test5Nodes() throws InterruptedException {
 
         final Simulator sim = SimulatorFactory.instance().createSimulator();
 
         final ArrayList<Integer> members = new ArrayList<Integer>();
-        int startIndex = 2;
+        int startIndex = 0;
         members.add(startIndex + 1);
         members.add(startIndex + 2);
         members.add(startIndex + 3);
@@ -452,9 +515,8 @@ public class BullyTest extends AbstractTest {
 
         Thread.sleep(15000);
         @SuppressWarnings("unused")
-
         final Node f = sim.buildNode().name("F").connections(router1).kernel(sim.createUserKernel(new BullyProcess(members, 0))).create();
-        
+
 
         //now add A back in:
 //        Thread.sleep(15000);
