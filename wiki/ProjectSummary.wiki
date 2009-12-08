@@ -57,3 +57,10 @@ Our network simulator is useful representation of real world networks and can be
 * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java Two Phase Commit] on a simulated DS:
 
   Nodes on a token ring are logically organized in a ring topology with data being transmitted sequentially from one node to the next with a control token circulating around the ring controlling access.  The logical topology is used for the two phase process of voting and commit/abort.  Our test simulations allows the user to set the likelihood nodes will not agree to the commit request as well as the likelihood a node will want a token that is up for grabs.      
+
+
+==Project Contributions==
+  *Anthony
+  *Daniel
+  *Kristy
+  *Luke
