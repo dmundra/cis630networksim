@@ -78,8 +78,6 @@ Our network simulator is useful representation of real world networks and can be
 
   After some time, _a_ dies, and a new election is called, to which _b_ wins. After another interval, a new process joins. This process calls an election (with election time 1), to which processes respond (and thus the clock is updated to the current election). When _b_ receives the message to cast its vote, it also realizes that it has already declared itself the winner to the current election, so it resends the victory message.
 
-  At the time of the last document commit, we are experiencing difficulty in the case of a new node entering the system.....
-
 * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java Two Phase Commit] on a simulated DS:
 
   Nodes on a token ring are logically organized in a ring topology with data being transmitted sequentially from one node to the next with a control token circulating around the ring controlling access.  The logical topology is used for the two phase process of voting and commit/abort.  
