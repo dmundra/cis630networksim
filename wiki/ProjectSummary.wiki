@@ -76,7 +76,7 @@ Our network simulator is useful representation of real world networks and can be
 
   When we start the test, the leader is a dead process, so all process call an election after incrementing their clocks to 1 (the clock starts at 0). So as far as each process is concerned, they started the election, but their action isn't any different than if they received a request for election. So the first election ends with a leader (except in the case that the leader hits the high end of a random sleep, in which case, _b_ is elected temporarily, until _a_ checks and sees that an inferior declared itself winner and starts a new election).
 
-  After some time, _a_ dies, and a new election is called, to which _b_ wins. After another interval, a new process joins. This process calls an election (with election time 1), to which processes respond (and thus the clock is updated to the current election), but no winner is declared as the victory message is only sent once. The new process realizes there is a conflict when no victory message was sent (and yet it received votes), so it calls a new election with the next election number, to which _b_ is declared a winner.   
+  After some time, _a_ dies, and a new election is called, to which _b_ wins. After another interval, a new process joins. This process calls an election (with election time 1), to which processes respond (and thus the clock is updated to the current election). When _b_ receives the message to cast its vote, it also realizes that it has already declared itself the winner to the current election, so it resends the victory message.
 
   At the time of the last document commit, we are experiencing difficulty in the case of a new node entering the system.....
 
