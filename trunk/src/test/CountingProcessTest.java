@@ -1,8 +1,13 @@
 package test;
 
+import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Collections;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -24,122 +29,223 @@ import network.OperatingSystem.DisconnectedException;
 @Test(sequential=true)
 @SuppressWarnings("unused")
 public class CountingProcessTest extends AbstractTest {
-    private static final int GOAL = 100;
+    private static final int DEFAULT_GOAL = 100;
     private static final long TIMEOUT = 7000;
     
-    private volatile CountDownLatch goalSignal;
-    private volatile Simulator sim;
-    
-    private class CountingProcess extends AbstractProcess {
-        private static final int WAIT = 4000;
-
-        private static final int PORT = 42;
+    abstract class TestCase {
+        private final CountDownLatch goalSignal =
+            new CountDownLatch(goalCount());
+        final Simulator sim =
+            SimulatorFactory.instance().createSimulator();
         
-        private final int peerAddr;
-        private final boolean first;
-        
-        CountingProcess(int peerAddr, boolean first) {
-            this.peerAddr = peerAddr;
-            this.first = first;
+        int goal() {
+            return DEFAULT_GOAL;
         }
-
-        private void send(int num) throws InterruptedException {
-            os().logger().log(Level.INFO, "Sending: {0}", num);
-            try {
-                os().send(peerAddr, PORT, PORT, num);
-            } catch (DisconnectedException e) {
-                os().logger().info("Oops. I've been disconnected.");
+        
+        int goalCount() {
+            return 1;
+        }
+        
+        int waitTimeMillis() {
+            return 2000;
+        }
+        
+        abstract void setup();
+        
+        final void run() throws Exception {
+            setup();
+            sim.start();
+            goalSignal.await();
+            sim.destroy();
+        }
+        
+        int messageReportingInterval() {
+            return 1;
+        }
+        
+        Node counter(String name, int address, int peer, boolean start,
+                Node ... neighbors) {
+            return sim.buildNode(address)
+                .name(name)
+                .kernel(sim.createUserKernel(new CountingProcess(peer, start)))
+                .connections(neighbors)
+                .create();
+        }
+        
+        Node router(String name, int address, Node ... neighbors) {
+            return sim.buildNode(address)
+                .name(name)
+                .connections(neighbors)
+                .create();
+        }
+        
+        private class CountingProcess extends AbstractProcess {
+            private static final int PORT = 42;
+            
+            private final int peerAddr;
+            private final boolean first;
+            
+            CountingProcess(int peerAddr, boolean first) {
+                this.peerAddr = peerAddr;
+                this.first = first;
             }
-            
-        }
-        
-        protected void run() throws InterruptedException {
-        	Thread.sleep(WAIT);
-        	
-            if (first)
-                send(1);
-            
-            while (true) {
-                Message<Integer> message =
-                    os().receive(PORT).asType(Integer.class);
-                
-                final int num = message.data;
-                os().logger().log(Level.INFO, "Received: {0}", num);
-                if (num == GOAL) {
-                    os().logger().info("Reached goal; signaling");
-                    goalSignal.countDown();
+    
+            private void send(int num) throws InterruptedException {
+                if (num % messageReportingInterval() == 0)
+                    os().logger().log(Level.INFO, "Sending: {0}", num);
+                try {
+                    os().send(peerAddr, PORT, PORT, num);
+                } catch (DisconnectedException e) {
+                    os().logger().info("Oops. I've been disconnected.");
                 }
                 
-                send(num + 1);
+            }
+            
+            protected void run() throws InterruptedException {
+            	Thread.sleep(waitTimeMillis());
+            	
+                if (first)
+                    send(1);
+                
+                while (true) {
+                    Message<Integer> message =
+                        os().receive(PORT).asType(Integer.class);
+                    
+                    final int num = message.data;
+                    if (num % messageReportingInterval() == 0)
+                        os().logger().log(Level.INFO, "Received: {0}", num);
+                    if (num == goal()) {
+                        os().logger().info("Reached goal; signaling");
+                        goalSignal.countDown();
+                    }
+                    
+                    send(num + 1);
+                }
             }
         }
     }
 
-    @BeforeMethod
-    public void setup() {
-        sim = SimulatorFactory.instance().createSimulator();
-        goalSignal = new CountDownLatch(1);
-    }
-    
-    @AfterMethod
-    public void shutDown() {
-        sim.destroy();
-        sim = null;
-        goalSignal = null;
-    }
-    
     @Test(description="Test with two nodes directly connected",
             timeOut=TIMEOUT)
-    public void test() throws InterruptedException {
-        final Node a = counter("A", 1, 2, true);
-        final Node b = counter("B", 2, 1, false, a);
-        
-        sim.start();
-        goalSignal.await();
+    public void test() throws Exception {
+        new TestCase() {
+            void setup() {
+                final Node a = counter("A", 1, 2, true);
+                final Node b = counter("B", 2, 1, false, a);
+            }
+        }.run();
     }
     
     @Test(description="Test with three nodes connected by a router",
             timeOut=TIMEOUT)
-    public void test3Nodes() throws InterruptedException {
-        final Node a = counter("A", 1, 2, true);
-        final Node b = counter("B", 2, 3, false);
-        final Node c = counter("C", 3, 1, false);
-        
-        final Node router = router("Router", 4, a, b, c);
-        
-        sim.start();
-        goalSignal.await();
+    public void test3Nodes() throws Exception {
+        new TestCase() {
+            void setup() {
+                final Node a = counter("A", 1, 2, true);
+                final Node b = counter("B", 2, 3, false);
+                final Node c = counter("C", 3, 1, false);
+                
+                final Node router = router("Router", 4, a, b, c);        
+            }
+        }.run();
     }
     
     @Test(description="Test with 5 nodes connected by two routers",
             timeOut=TIMEOUT*2)
-    public void test5Nodes() throws InterruptedException {
-        final Node a = counter("A", 1, 2, true);
-        final Node b = counter("B", 2, 3, false);
-        final Node c = counter("C", 3, 4, false);
-        final Node d = counter("D", 4, 5, false);
-        final Node e = counter("E", 5, 1, false);
-        
-        final Node router1 = router("Router 1", 6, a, b, c);
-        final Node router2 = router("Router 2", 7, router1, d, e);
-        
-        sim.start();
-        goalSignal.await();
+    public void test5Nodes() throws Exception {
+        new TestCase() {
+            int waitTimeMillis() {
+                return 3000;
+            }
+            
+            void setup() {
+                final Node a = counter("A", 1, 2, true);
+                final Node b = counter("B", 2, 3, false);
+                final Node c = counter("C", 3, 4, false);
+                final Node d = counter("D", 4, 5, false);
+                final Node e = counter("E", 5, 1, false);
+                
+                final Node router1 = router("Router 1", 6, a, b, c);
+                final Node router2 = router("Router 2", 7, router1, d, e);        
+            }
+        }.run();
     }
     
-    private Node counter(String name, int address, int peer, boolean start,
-            Node ... neighbors) {
-        return sim.buildNode(address)
-            .name(name)
-            .kernel(sim.createUserKernel(new CountingProcess(peer, start)))
-            .connections(neighbors)
-            .create();
+    private static int[][] partitionAndPermute(
+            int from, int count, int ... sizes) {
+        {
+            int sum = 0;
+            for (int size : sizes)
+                sum += size;
+            Assert.assertEquals(count, sum, "Total partition size");
+        }
+        
+        final int[] nums = new int[count];
+        for (int n = from, ix = 0; ix < count; ix++, n++)
+            nums[ix] = n;
+        
+        Collections.shuffle(Arrays.asList(nums), new Random(0));
+        
+        final int[][] ans = new int[sizes.length][];
+        for (int partIx = 0, ix = 0; partIx < sizes.length; partIx++) {
+            ans[partIx] = Arrays.copyOfRange(nums, ix, ix + sizes[partIx]);
+            ix += sizes[partIx];
+        }
+        
+        // Make sure this works ...
+        final BitSet present = new BitSet();
+        for (int[] part : ans)
+            for (int n : part)
+                present.set(n);
+        
+        for (int n = from; n < from + count; n++)
+            assert present.get(n);
+        
+        return ans;
     }
     
-    private Node router(String name, int address, Node ... neighbors) {
-        return sim.buildNode(address)
-            .name(name)
-            .connections(neighbors)
-            .create();
+    @Test(description="Test with 18 nodes, in three groups, connected by 7 routers",
+            timeOut=TIMEOUT*4)
+    public void test18Nodes() throws Exception {
+        new TestCase() {
+            Node[] nodes(int ... addrs) {
+                final Node[] ans = new Node[addrs.length];
+                for (int ix = 0; ix < addrs.length; ix++)
+                    ans[ix] = sim.nodeAt(addrs[ix]);
+                return ans;
+            }
+            
+            int goalCount() {
+                return 3;
+            }
+            
+            int waitTimeMillis() {
+                return 10000;
+            }
+            
+            void setup() {
+                // Scramble the numbers from 1 to 18 and split them into three
+                // partitions of sizes 5, 6, and 7
+                final int groups[][] = partitionAndPermute(1, 18, 5, 6, 7);
+                
+                for (int[] group : groups) {
+                    for (int ix = 0; ix < group.length; ix++) {
+                        final int addr = group[ix];
+                        final int peerAddr = group[(ix + 1) % group.length];
+                        
+                        counter(String.valueOf((char) ('A' + (addr - 1))),
+                                addr, peerAddr, ix == 0);
+                    }
+                }
+                
+                router("Router 1", 19, nodes(1, 2, 3, 4));
+                router("Router 2", 20, nodes(5, 6, 7, 8, 9));
+                router("Router 3", 21, nodes(19, 20));
+                router("Router 4", 22, nodes(21));
+                router("Router 5", 23, nodes(10, 11, 22));
+                router("Router 6", 24, nodes(12, 13, 14, 15, 22));
+                router("Router 7", 25, nodes(16, 17, 18, 22));
+            }
+        }.run();
     }
 }

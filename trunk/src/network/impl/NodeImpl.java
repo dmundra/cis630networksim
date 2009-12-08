@@ -149,8 +149,10 @@ class NodeImpl extends SimulationObject<Node> implements Node {
             kernel.shutDown();
             // Wait until the main thread finishes
             kernelThread.join();
-            Thread.yield();
-            kernelThreadGroup.destroy();
+            // Commenting this out, as it seems highly race-prone and isn't
+            // strictly necessary; it's *meant* to guard against extra threads
+            // left running ...
+//            kernelThreadGroup.destroy();
             running = false;
         } catch (InterruptedException e) {
             logger.warning("Interrupted during shutdown");
