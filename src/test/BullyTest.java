@@ -65,7 +65,7 @@ public class BullyTest extends AbstractTest {
             // see if we are not the leader:
             if (os().address() != leader) {
 
-                //os().logger().log(Level.INFO, "Sending info to my leader: {0}", leader);
+                os().logger().log(Level.INFO, "Sending info to my leader: {0}", leader);
 
                 try {
                     os().send(leader, WORK_PORT, WORK_PORT, "are you there?");
@@ -89,9 +89,8 @@ public class BullyTest extends AbstractTest {
                         Message<String> message = os().receive(WORK_PORT, 1,
                                 TimeUnit.MILLISECONDS).asType(String.class);
 
-//						os().logger().info(
-//						        "I am the leader, responding to "
-//						                + message.source);
+                        os().logger().info(
+                                "I am the leader, responding to " + message.source);
 
                         try {
                             os().send(message.source, WORK_PORT, WORK_PORT, "Hi! I am the leader");
@@ -208,7 +207,7 @@ public class BullyTest extends AbstractTest {
             // check to see if we need to update our election clock:
             if (electionMessage.data.electionNum > electionNum) {
                 os().logger().info(
-                        "my election num: " + electionNum + ", new election num: " + electionMessage.data.electionNum);
+                        "updating my election num: " + electionNum + ", new election num: " + electionMessage.data.electionNum);
 
                 setElectionNum(electionMessage.data.electionNum);
             }
@@ -231,6 +230,9 @@ public class BullyTest extends AbstractTest {
                     os().send(electionMessage.source, ELECTION_PORT,
                             ELECTION_PORT,
                             ETuple.get(os().address(), electionNum));
+
+                    os().logger().info(
+                            "responding to an inferior - " + electionMessage.source);
 
                     //since they may be late bloomers, we'll tell them we are
                     //the leader (if we are)
@@ -336,11 +338,27 @@ public class BullyTest extends AbstractTest {
                             TimeUnit.MILLISECONDS).asType(ETuple.class);
 
                     if (message.data.electionNum >= electionNum) {
-                        //something went wrong, call a new election:
-                        if (message.data.electionNum > electionNum) {
-                            setElectionNum(message.data.electionNum);
+
+                        
+                        if (message.data.address > os().address()) {
+                            //this is from an inferior:
+                            if (message.data.electionNum > electionNum) {
+                                setElectionNum(message.data.electionNum);
+
+//                            } else if (message.data.electionNum == electionNum &&
+//                                    elecitonNumLastReceived == electionNum &&
+//                                    iShouldBeLeader && leader == os().address()) {
+//                                //make sure to call a new election as we thought that
+//                                //we were the winner on this election:
+//                                newNewElection = true;
+                            }
+
+                            callElection(true);
                         }
-                        callElection(false);
+
+
+                        //something went wrong, call a new election:
+
                     }
 
                 } catch (NullPointerException e) {
