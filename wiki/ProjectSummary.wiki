@@ -56,11 +56,15 @@ Our network simulator is useful representation of real world networks and can be
 
 * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java Two Phase Commit] on a simulated DS:
 
-  Nodes on a token ring are logically organized in a ring topology with data being transmitted sequentially from one node to the next with a control token circulating around the ring controlling access.  The logical topology is used for the two phase process of voting and commit/abort.  Our test simulations allows the user to set the likelihood nodes will not agree to the commit request as well as the likelihood a node will want a token that is up for grabs.      
+  Nodes on a token ring are logically organized in a ring topology with data being transmitted sequentially from one node to the next with a control token circulating around the ring controlling access.  The logical topology is used for the two phase process of voting and commit/abort.  
+
+  In our example we have 5 nodes connected with two routers. We setup each node to have the address of the next node with the last node pointing back to the first node forming the ring. When we start the program the first node is set to be the one who wants to commit and they pass a token to the next node asking to commit. The next node will either accept it or reject it by putting its answer in the token and passing it along to the next node. After this is done for all nodes the node that asked to commit will get back the token and they can check it to see if anyone rejected the commit request. If everyone accepted or someone rejected the commit request the node will then send another token that will contain whether it aborted or it was a success. After that token comes back acknowledging everyone received the message of abort or success the node will then send a up for grabs token which says that now someone else can send a commit request by taking the up for grabs token and sending a commit request token and the we repeat the two phase token sending. 
+ 
+  Our test simulation allows the user to set the likelihood nodes will not agree to the commit request as well as the likelihood a node will want a token that is up for grabs.      
 
 
 ==Project Contributions==
   * Anthony
-  * Daniel
+  * Daniel: I worked on initial project description of simulating a botnet with the rest of the team. Worked with Anthony and Kristy to develop the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java KernelImpl] method that manages how routers perform the RIP algorithm and manage message routing. Created the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java Two Phase Commit] test case and worked with Anthony and Kristy to improve it.
   * Kristy
   * Luke
