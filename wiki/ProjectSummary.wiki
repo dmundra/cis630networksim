@@ -90,7 +90,7 @@ Our network simulator is useful representation of real world networks and can be
 
 
 ==Project Contributions==
-  * Anthony
+  * Anthony: I mostly worked on the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java KernelImpl] and the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/BullyTest.java Bully Test], with a lot of help from the team. 
   * Daniel: I worked on initial project description of simulating a botnet with the rest of the team. Worked with Anthony and Kristy to develop the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java KernelImpl] method that manages how routers perform the RIP algorithm and manage message routing. Created the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java Two Phase Commit] test case and worked with Anthony and Kristy to improve it.
   * Kristy
   * Luke: I designed the basic outline of the API and wrote the implementations of the basic machinery (Simulator, Node, !OperatingSystem, and !UserKernel). Also wrote a simple HTTP server and client (not as interesting without the botnet simulation, though). Toward the end I helped troubleshoot !KernelImpl, largely the RIP implementation, and I wrote the !CountingTest and !CountingProcessTest to exercise and test the simulation.
