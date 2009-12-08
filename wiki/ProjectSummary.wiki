@@ -25,10 +25,10 @@ We have a hierarchy of interfaces that represent
   * Simulator - The main control interface to the simulation. From here, nodes are created, destroyed, and manipulated at will.
 
 With that we have classes that represent
-  * Interface Implementations - [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java KernelImpl], [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/NodeImpl.java NodeImpl], and etc.
+  * Interface Implementations - [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java KernelImpl], [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/NodeImpl.java NodeImpl], etc.
   * Protocols - [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/protocols/HTTP.java HTTP protocol], [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/protocols/RIP.java RIP protocol]
   * Software - [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/software/HTTPServer.java HTTPServer]
-  * Test Programs - [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/CountingTest.java CountingTest], [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/HTTPServerTest.java HTTPServerTest], [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/KernelUserTest.java KernelUserTest]
+  * Test Programs - [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/CountingTest.java CountingTest], [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/CountingProcessTest.java CountingProcessTest], [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/HTTPServerTest.java HTTPServerTest], [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/KernelUserTest.java KernelUserTest], etc.
 
 ===Operation===
 
@@ -37,14 +37,14 @@ To run, a driver program obtains a Simulator implementation and builds several n
   * An integer address (can be auto-assigned)
   * A name (optional; for display purposes)
   * A kernel
-    * If the kernel is a UserKernel, it may in turn contain a process
+    * If the kernel is a !UserKernel, it may in turn contain a process
   * Other nodes to which it is connected
 
 The kernel determines the behavior of the node; the only difference between a router and a leaf node is which kernel is loaded.
 
 When the simulator is started, all nodes begin running in parallel. Messages are sent through the network using each
 node's Interface objects; the Interface's send() and receive() methods operate on Message objects. A Message is simply a Serializable blob containing source and destination addresses and ports, along with some object with its
-payload. When send() is called, the Message is serialized into a byte array and added to a BlockingQueue on the connected Interface, where it waits for a receive() call to remove it from the queue and deserialize it. (Serialization keeps us from cheating (at least easily) by sending across an object and manipulating it afterward, allowing for communication without going through the Interface.)
+payload. When send() is called, the Message is serialized into a byte array and added to a !BlockingQueue on the connected Interface, where it waits for a receive() call to remove it from the queue and deserialize it. (Serialization keeps us from cheating (at least easily) by sending across an object and manipulating it afterward, allowing for communication without going through the Interface.)
 
 ==Tests==
   * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/BullyTest.java BullyTest]  - Test of network which implements the Bully Algorithm for establishing control.  The Bully Algorithm uses Lamport Clocks for the election process.
@@ -93,4 +93,4 @@ Our network simulator is useful representation of real world networks and can be
   * Anthony
   * Daniel: I worked on initial project description of simulating a botnet with the rest of the team. Worked with Anthony and Kristy to develop the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java KernelImpl] method that manages how routers perform the RIP algorithm and manage message routing. Created the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java Two Phase Commit] test case and worked with Anthony and Kristy to improve it.
   * Kristy
-  * Luke: I designed the basic outline of the API and wrote the implementations of the basic machinery (Simulator, Node, OperatingSystem, and UserKernel). Also wrote a simple HTTP server and client (not as interesting without the botnet simulation, though). Toward the end I helped troubleshoot KernelImpl, largely the RIP implementation, and I wrote the CountingTest and CountingProcessTest to exercise and test the simulation.
+  * Luke: I designed the basic outline of the API and wrote the implementations of the basic machinery (Simulator, Node, !OperatingSystem, and !UserKernel). Also wrote a simple HTTP server and client (not as interesting without the botnet simulation, though). Toward the end I helped troubleshoot !KernelImpl, largely the RIP implementation, and I wrote the !CountingTest and !CountingProcessTest to exercise and test the simulation.
