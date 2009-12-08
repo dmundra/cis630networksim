@@ -42,7 +42,7 @@ Our network simulator is useful representation of real world networks and can be
 
 * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java RIP Algorithm] *
   
-  The KernelImpl is an implementation of a Kernel that is designed to run a router. These routers send a message to all of their neighbors (directly connected nodes) requesting routing information. When routing information is received, we compare it against our table to see if we need to add to/update our table. Entries are only removed from our table when a message is unsuccessfully sent (we assume a dead connection somewhere along the way).  
+  KernelImpl is an implementation of a Kernel that is designed to run a router. These routers send a message to all of their neighbors (directly connected nodes) requesting routing information. When routing information is received, we compare it against our table to see if we need to add to/update our table. Entries are only removed from our table when a message is unsuccessfully sent (we assume a dead connection somewhere along the way).  
 
 * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/BullyTest.java Bully Algorithm] on a simulated DS:
 
