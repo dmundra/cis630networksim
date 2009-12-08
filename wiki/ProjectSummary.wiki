@@ -41,12 +41,18 @@ We are using TestNG to test are code. We have implemented Java Logger in all our
 Our network simulator is useful representation of real world networks and can be set-up in any configuration which physical networks exist.  The Nodes, which represent routers and computers, run independent of each other. Encapsulation of data and code forces the user to obey the normal physical constraints of contacting other nodes through "wired" connections rather than just accessing the information. 
 
 * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java RIP Algorithm] 
-
-  EXPLAIN RIP IMPLEMENTATION
+  
+  The KernelImpl is an implementation of a Kernel that is designed to run a router. These routers send a message to all of their neighbors (directly connected nodes) requesting routing information. When routing information is received, we compare it against our table to see if we need to add to/update our table. Entries are only removed from our table when a message is unsuccessfully sent (we assume a dead connection somewhere along the way).  
 
 * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/BullyTest.java Bully Algorithm] on a simulated DS:
 
- EXPLAIN BULLY ALGORITHM HERE
+  We tested a bully algorithm by simulating a network with five computers and two routers. Each computer has one process that is participating in the network by sending information (an almost empty message) to the elected leader. The leader then replies with an acknowledgment of receipt. 
+
+  If a process never receives an acknowledgment from its leader it calls an election (by requesting votes from its superiors). If a vote is received, the process begins to wait for an announcement from the new leader (as there exists a superior to this process). If no superiors respond, the process declares itself the leader and sends the message to all participating processes.  
+
+  Each process has a logical election clock. This clock represents that most current election that this process knows about. When a process calls an election, it increments the clock and begins sending the messages. When an election related message is received, the election clock is checked to see if the message relevant (i.e. not from an old election). The use of the election clocks enabled us to have multiple processes calling elections concurrently while still arriving at a single result. 
+
+  When a new process...
 
 * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java Two Phase Commit] on a simulated DS:
 
