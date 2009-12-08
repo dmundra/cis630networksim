@@ -9,6 +9,7 @@ import java.io.Serializable;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,6 +30,10 @@ final class InterfaceImpl extends SimulationObject<Interface>
         // TODO Explore using things like a bounded buffer, or a 
         // DelayedBlockingQueue for adding latency, etc.
         new LinkedBlockingQueue<byte[]>();
+    private final AtomicLong 
+        sendCount = new AtomicLong(),
+        receiveCount = new AtomicLong();
+        
     
     interface NewInterfaceCallback {
         int registerInterface(InterfaceImpl iface);
@@ -123,7 +128,8 @@ final class InterfaceImpl extends SimulationObject<Interface>
         if (peer == null)
             throw new DisconnectedException();
         
-        logger.log(Level.FINER, "Sent: {0}", message);
+        logger.log(Level.FINER, "Sent {0,number,###0}: {1}",
+                new Object[] { sendCount.getAndIncrement(), message });
         
         final byte[] data;
         try {
@@ -164,7 +170,8 @@ final class InterfaceImpl extends SimulationObject<Interface>
             throw new RuntimeException(e);
         }
         
-        logger.log(Level.FINER, "Received: {0}", message);
+        logger.log(Level.FINER, "Rcvd {0,number,###0}: {1}",
+                new Object[] { receiveCount.getAndIncrement(), message });
         
         return message;
     }
@@ -188,7 +195,9 @@ final class InterfaceImpl extends SimulationObject<Interface>
     }
     
     public String toString() {
-        return "Interface: " + node + "." + index + " -> " 
-                + peer.node + "." + peer.index;
+        final InterfaceImpl peer = this.peer;
+        
+        return "Interface: " + node + "." + index + 
+            (peer == null ? " (disconnected)" : " -> " + peer.node + "." + peer.index);
     }
 }
