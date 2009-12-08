@@ -7,7 +7,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import network.AbstractKernel;
 import network.Interface;
@@ -27,9 +26,7 @@ import network.protocols.RIP;
 public class KernelImpl extends AbstractKernel {
     private static final long
         RIP_TASK_DELAY = 1,
-        RIP_TASK_PERIOD = 1000,
-        CHECK_TASK_DELAY = 1,
-        CHECK_TASK_PEROD = 1;
+        RIP_TASK_PERIOD = 1000;
     
     private ConcurrentMap<Integer, KernelNode> routingTable = new ConcurrentHashMap<Integer, KernelNode>();
 	/** a list of the messages that need to be processed by the routing table */
@@ -51,11 +48,10 @@ public class KernelImpl extends AbstractKernel {
 	 */
 	public void start() {
 		// Runs the RIP algorithm every RIP_TASK_PERIOD milliseconds.
-		checkNeighbors = Executors.newScheduledThreadPool(1);
+		checkNeighbors = Executors.newScheduledThreadPool(2);
 		checkNeighbors.scheduleWithFixedDelay(
 		        new RIPTask(), RIP_TASK_DELAY, RIP_TASK_PERIOD, TimeUnit.MILLISECONDS);
-		checkNeighbors.scheduleWithFixedDelay(
-		        new CheckMessages(), CHECK_TASK_DELAY, CHECK_TASK_PEROD, TimeUnit.MILLISECONDS);
+		checkNeighbors.execute(new CheckMessages());
 	}
 
 	/**
@@ -70,60 +66,61 @@ public class KernelImpl extends AbstractKernel {
 		
 		@Override
 		public void run() {
-			// we want to check all of the interfaces to see if they have any
-			// messages for us to process:
-		    for (Interface iface : interfaces()) {
-				try {
-					Message<?> receivedMessage = iface.receive(50, TimeUnit.MILLISECONDS);
-					
-					// This is for case a message timeout
-					if(receivedMessage == null){
-						// no messages for us, ignore.
-					} else if(receivedMessage.sentToPort(KnownPort.KERNEL_WHO)){
-					    final Message<RIP.Datagram> message =
-					        receivedMessage.asType(RIP.Datagram.class);
-					    
-					    // rip message:
-						// see if it's from a router:
-						if (message.data.entries != null) {
-							toRoute.put(iface, message);
-						} else {
-							// this is just from a regular computer, add it to the list:
-							RIP.Datagram fakeDatagram =
-							    new RIP.Datagram(new RIP.Datagram.Entry[] {
-						            new RIP.Datagram.Entry(receivedMessage.source, (byte) 0)
-						        });
-							Message<RIP.Datagram> fakeMessage = new Message<RIP.Datagram>(receivedMessage.source, receivedMessage.destination, receivedMessage.sourcePort, receivedMessage.destinationPort, fakeDatagram);
-							toRoute.put(iface, fakeMessage);
-						}
-					} else {
-						
-						int dest = receivedMessage.destination;						
-						KernelNode destNode = routingTable.get(dest);						
-						
-						if(destNode != null) {
-							
-							Interface sendIface = destNode.getLink();
-							
-							try {
-								sendIface.send(receivedMessage);
-							} catch (DisconnectedException e) {
-							    createDiscError(receivedMessage);
-							}
-						} else {
-							createDiscError(receivedMessage);
-						}						
-						
-					}
-
-				} catch (InterruptedException e) {
-					// We're shutting down
-				    Thread.currentThread().interrupt();
-				    return;
-				}
-			}
+		    while (true) {
+    			// we want to check all of the interfaces to see if they have any
+    			// messages for us to process:
+    		    for (Interface iface : interfaces()) {
+    				try {
+    					Message<?> receivedMessage = iface.receive(0, TimeUnit.MILLISECONDS);
+    					
+    					// This is for case a message timeout
+    					if(receivedMessage == null){
+    						// no messages for us, ignore.
+    					} else if(receivedMessage.sentToPort(KnownPort.KERNEL_WHO)){
+    					    final Message<RIP.Datagram> message =
+    					        receivedMessage.asType(RIP.Datagram.class);
+    					    
+    					    // rip message:
+    						// see if it's from a router:
+    						if (message.data.entries != null) {
+    							toRoute.put(iface, message);
+    						} else {
+    							// this is just from a regular computer, add it to the list:
+    							RIP.Datagram fakeDatagram =
+    							    new RIP.Datagram(new RIP.Datagram.Entry[] {
+    						            new RIP.Datagram.Entry(receivedMessage.source, (byte) 0)
+    						        });
+    							Message<RIP.Datagram> fakeMessage = new Message<RIP.Datagram>(receivedMessage.source, receivedMessage.destination, receivedMessage.sourcePort, receivedMessage.destinationPort, fakeDatagram);
+    							toRoute.put(iface, fakeMessage);
+    						}
+    					} else {
+    						
+    						int dest = receivedMessage.destination;						
+    						KernelNode destNode = routingTable.get(dest);						
+    						
+    						if(destNode != null) {
+    							
+    							Interface sendIface = destNode.getLink();
+    							
+    							try {
+    								sendIface.send(receivedMessage);
+    							} catch (DisconnectedException e) {
+    							    createDiscError(receivedMessage);
+    							}
+    						} else {
+    							createDiscError(receivedMessage);
+    						}						
+    						
+    					}
+    
+    				} catch (InterruptedException e) {
+    					// We're shutting down
+    				    Thread.currentThread().interrupt();
+    				    return;
+    				}
+    			}
+    		}
 		}
-
 	}
 	
 	/**
@@ -192,9 +189,7 @@ public class KernelImpl extends AbstractKernel {
 					toPrint += ("\n\t" + node);
 				}
 							
-				Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
-				
-				log.info(toPrint);
+				logger().info(toPrint);
 			}
 
 		}
