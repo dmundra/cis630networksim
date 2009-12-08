@@ -40,7 +40,7 @@ We are using TestNG to test are code. We have implemented Java Logger in all our
 == Why our interface is useful to simulate a distributed system ==
 Our network simulator is useful representation of real world networks and can be set-up in any configuration which physical networks exist.  The Nodes, which represent routers and computers, run independent of each other. Encapsulation of data and code forces the user to obey the normal physical constraints of contacting other nodes through "wired" connections rather than just accessing the information. 
 
-* [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java RIP Algorithm] 
+* [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java RIP Algorithm] *
   
   The KernelImpl is an implementation of a Kernel that is designed to run a router. These routers send a message to all of their neighbors (directly connected nodes) requesting routing information. When routing information is received, we compare it against our table to see if we need to add to/update our table. Entries are only removed from our table when a message is unsuccessfully sent (we assume a dead connection somewhere along the way).  
 
