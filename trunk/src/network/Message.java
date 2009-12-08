@@ -37,6 +37,10 @@ public final class Message<T extends Serializable> implements Serializable {
         return clazz.isInstance(data);
     }
     
+    public boolean sentToPort(KnownPort port) {
+        return port.is(destinationPort);
+    }
+    
     @Override
     public String toString() {
         final StringBuilder builder = new StringBuilder("Message [");

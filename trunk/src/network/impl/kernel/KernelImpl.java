@@ -1,10 +1,12 @@
 package network.impl.kernel;
 
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import network.AbstractKernel;
@@ -12,6 +14,7 @@ import network.Interface;
 import network.KnownPort;
 import network.Message;
 import network.Interface.DisconnectedException;
+import network.protocols.RIP;
 
 /**
  * KernelImpl for routers. The code below has two important features
@@ -22,66 +25,76 @@ import network.Interface.DisconnectedException;
  * @author Anthony Wittig
  */
 public class KernelImpl extends AbstractKernel {
-    private ConcurrentHashMap<Integer, KernelNode> routingTable = new ConcurrentHashMap<Integer, KernelNode>();
+    private static final long
+        RIP_TASK_DELAY = 1,
+        RIP_TASK_PERIOD = 1000,
+        CHECK_TASK_DELAY = 1,
+        CHECK_TASK_PEROD = 1;
+    
+    private ConcurrentMap<Integer, KernelNode> routingTable = new ConcurrentHashMap<Integer, KernelNode>();
 	/** a list of the messages that need to be processed by the routing table */
-	private ConcurrentHashMap<Integer, Message<KernelNode>> toRoute = new ConcurrentHashMap<Integer, Message<KernelNode>>();
+	private ConcurrentMap<Interface, Message<RIP.Datagram>> toRoute = new ConcurrentHashMap<Interface, Message<RIP.Datagram>>();
 	public static boolean printRipTable = false;
-	private volatile Timer checkNeighbors;
+	private volatile ScheduledExecutorService checkNeighbors;
 	
 	/**
 	 * Shutdown router
 	 */
 	public void shutDown() throws InterruptedException {
-	    checkNeighbors.cancel();	    
-        logger().info("Shutting down");        
-        Thread.sleep(100);
+	    checkNeighbors.shutdownNow();
+	    while (!checkNeighbors.awaitTermination(1, TimeUnit.SECONDS))
+	        continue;
 	}
 
 	/**
 	 * Start up router. Set RIP algorithm to run every second. Router will check messages every 50ms
 	 */
 	public void start() {
-		// Runs the RIP algorithm every 50 seconds for now.
-		checkNeighbors = new Timer("checkNeighbors");
-		checkNeighbors.schedule(new RIPTask(), 200, 1000);
-		checkNeighbors.schedule(new CheckMessages(), 2000, 50);
+		// Runs the RIP algorithm every RIP_TASK_PERIOD milliseconds.
+		checkNeighbors = Executors.newScheduledThreadPool(1);
+		checkNeighbors.scheduleWithFixedDelay(
+		        new RIPTask(), RIP_TASK_DELAY, RIP_TASK_PERIOD, TimeUnit.MILLISECONDS);
+		checkNeighbors.scheduleWithFixedDelay(
+		        new CheckMessages(), CHECK_TASK_DELAY, CHECK_TASK_PEROD, TimeUnit.MILLISECONDS);
 	}
 
 	/**
 	 * Class that checks to see if we have any messages to process in the
 	 * interfaces
 	 */
-	class CheckMessages extends TimerTask {
+	class CheckMessages implements Runnable {
 
 		public void createDiscError(Message<?> rm) {
-			logger().info(rm.toString());
-			logger().info(routingTable.toString());
+			logger().log(Level.WARNING, "Interface disconnected or route not found: {0}", rm);
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Override
 		public void run() {
 			// we want to check all of the interfaces to see if they have any
 			// messages for us to process:
 		    for (Interface iface : interfaces()) {
 				try {
-					Message receivedMessage = iface.receive(1, TimeUnit.MILLISECONDS);
+					Message<?> receivedMessage = iface.receive(50, TimeUnit.MILLISECONDS);
 					
 					// This is for case a message timeout
 					if(receivedMessage == null){
 						// no messages for us, ignore.
-					} else if(receivedMessage.destinationPort == KnownPort.KERNEL_WHO.ordinal()){
-						// rip message:
+					} else if(receivedMessage.sentToPort(KnownPort.KERNEL_WHO)){
+					    final Message<RIP.Datagram> message =
+					        receivedMessage.asType(RIP.Datagram.class);
+					    
+					    // rip message:
 						// see if it's from a router:
-						if (receivedMessage.data instanceof KernelNode) {
-							Message<KernelNode> rm2 = receivedMessage
-									.asType(KernelNode.class);
-							toRoute.put(iface.index(), rm2);
-						}else if(receivedMessage.data instanceof String){
+						if (message.data.entries != null) {
+							toRoute.put(iface, message);
+						} else {
 							// this is just from a regular computer, add it to the list:
-							KernelNode kn = new KernelNode(receivedMessage.source);
-							Message<KernelNode> mKN = new Message<KernelNode>(receivedMessage.source, receivedMessage.destination, receivedMessage.sourcePort, receivedMessage.destinationPort, kn);
-							toRoute.put(iface.index(), mKN);
+							RIP.Datagram fakeDatagram =
+							    new RIP.Datagram(new RIP.Datagram.Entry[] {
+						            new RIP.Datagram.Entry(receivedMessage.source, (byte) 0)
+						        });
+							Message<RIP.Datagram> fakeMessage = new Message<RIP.Datagram>(receivedMessage.source, receivedMessage.destination, receivedMessage.sourcePort, receivedMessage.destinationPort, fakeDatagram);
+							toRoute.put(iface, fakeMessage);
 						}
 					} else {
 						
@@ -90,13 +103,12 @@ public class KernelImpl extends AbstractKernel {
 						
 						if(destNode != null) {
 							
-							Interface sendIface = interfaces().get(destNode.getLink());
+							Interface sendIface = destNode.getLink();
 							
 							try {
 								sendIface.send(receivedMessage);
 							} catch (DisconnectedException e) {
-								//interfaces().remove(sendIface);
-								//e.printStackTrace();
+							    createDiscError(receivedMessage);
 							}
 						} else {
 							createDiscError(receivedMessage);
@@ -106,6 +118,7 @@ public class KernelImpl extends AbstractKernel {
 
 				} catch (InterruptedException e) {
 					// We're shutting down
+				    Thread.currentThread().interrupt();
 				    return;
 				}
 			}
@@ -117,40 +130,56 @@ public class KernelImpl extends AbstractKernel {
 	 * Class that runs the RIP algorithm to find all neighbors and add them to
 	 * Kernel's routing table.
 	 */
-	class RIPTask extends TimerTask {
-		@SuppressWarnings("static-access")
+	class RIPTask implements Runnable {
+		// TODO Clean up and fix RIP algorithm (current implementation of rip
+		// might be n^n...)
 		public void run() {			
 			for (Interface i : interfaces()) {
 				try {
-					KernelNode kernelNode = new KernelNode(address());
-					kernelNode.setRoutingTable(routingTable);
-					Message<KernelNode> findNeighbors = new Message<KernelNode>(
-							address(), 255, KnownPort.KERNEL_WHO.ordinal(),
-							KnownPort.KERNEL_WHO.ordinal(), kernelNode);
+					final KernelNode[] nodes =
+					    routingTable.values().toArray(new KernelNode[0]);
+				    final int count = nodes.length;
+				    
+				    final RIP.Datagram datagram =
+				        new RIP.Datagram(new RIP.Datagram.Entry[count]);
+				    
+				    for (int ix = 0; ix < count; ix++)
+				        datagram.entries[ix] =
+				            new RIP.Datagram.Entry(nodes[ix].getAddress(),
+				                    nodes[ix].getCost());
+				    
+					Message<RIP.Datagram> findNeighbors = new Message<RIP.Datagram>(
+							address(), 255, KnownPort.KERNEL_WHO,
+							KnownPort.KERNEL_WHO, datagram);
 					i.send(findNeighbors);
 
 				} catch (DisconnectedException e) {
-					//e.printStackTrace();
+					// TODO Handle disconnects according to RIP.
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+				    Thread.currentThread().interrupt();
+					return;
 				}
 			}
-
 			
 			//see if anyone sent us a back their info
-			for (Map.Entry<Integer, Message<KernelNode>> pair : toRoute
-					.entrySet()) {							
-				// Message<KernelNode> recievedMessage =
-				// pair.getKey().receive().asType(KernelNode.class);
-				KernelNode neighbor = pair.getValue().data.partialClone();
-				neighbor.setCost(1);
-				neighbor.setLink(pair.getKey());
-				//replace current info:
-				routingTable.put(pair.getValue().source, neighbor);
+			for (Map.Entry<Interface, Message<RIP.Datagram>> pair : toRoute
+					.entrySet()) {
+			    final Interface iface = pair.getKey();
+			    final Message<RIP.Datagram> message =
+			        pair.getValue().asType(RIP.Datagram.class);
+			    
+			    KernelNode neighbor = routingTable.get(message.source);
+			    if (neighbor == null) {
+			        final KernelNode newNeighbor =
+			            new KernelNode(message.source, iface, (byte) 0, (byte) 1);
+			        routingTable.putIfAbsent(message.source, newNeighbor);
+			    } else {
+			        neighbor.update(iface, (byte) 0, (byte) 1);
+			    }
 				
 				//now see if our updated node has any information that is better than what we have:
-				for(Map.Entry<Integer, KernelNode> sub : pair.getValue().data.getRoutingTable().entrySet()){					
-					checkAndAdd(sub, pair.getKey());
+				for (RIP.Datagram.Entry entry : message.data.entries){					
+					checkAndAdd(entry, iface);
 				}				
 
 			}			
@@ -159,8 +188,8 @@ public class KernelImpl extends AbstractKernel {
 			if(printRipTable) {
 				String toPrint = (name() + " - Check routing table:");
 							
-				for (Map.Entry<Integer, KernelNode> pair : routingTable.entrySet()) {
-					toPrint += ("\n\tName:" + pair.getValue().getAddress() + " Size:" + pair.getValue().getRoutingTable().size() + "");
+				for (KernelNode node : routingTable.values()) {
+					toPrint += ("\n\t" + node);
 				}
 							
 				Logger log = logger().getLogger("network.impl.kernel.KernelImpl");
@@ -172,42 +201,18 @@ public class KernelImpl extends AbstractKernel {
 		
 		/**
 		 * checks to see if the information should be added to our routing table
-		 * @param toAdd the info to check (and add if needed)
+		 * @param info the info to check (and add if needed)
 		 */
-		private void checkAndAdd(Map.Entry<Integer, KernelNode> info, int link){
-			
-			boolean checkNewGuy = false;
-			// see if the address is in our table:
-			if (routingTable.containsKey(info.getKey())) {
-				// the address is already here, so see if we are
-				// better:
-				if (routingTable.get(info.getKey()).getCost() > info.getValue()
-						.getCost()) {
-					// looks like we have a better way to get there:
-					KernelNode toAdd = info.getValue().partialClone();
-					toAdd.setCost(toAdd.getCost() + 1);
-					toAdd.setLink(link);
-					routingTable.replace(info.getKey(), toAdd);
-					checkNewGuy = true;
-				}
+		private void checkAndAdd(RIP.Datagram.Entry info, Interface iface){
+			final KernelNode node = routingTable.get(info.destination);
+			if (node == null) {
+			    if (info.metric != Byte.MAX_VALUE && info.destination != address()) {
+                    final KernelNode newNode =
+                        new KernelNode(info.destination, iface, info.metric, (byte) 1);
+                    routingTable.putIfAbsent(info.destination, newNode);
+			    }
 			} else {
-				// see if the address is not us:
-				if (address() != info.getKey()) {
-					// this might throw exception at runtime... I
-					// think that concurrentHashMap can do this
-					// though
-					KernelNode toAdd = info.getValue().partialClone();
-					toAdd.setCost(toAdd.getCost() + 1);
-					toAdd.setLink(link);
-					routingTable.put(info.getKey(), toAdd);
-					checkNewGuy = true;
-				}
-			}
-			
-			if(checkNewGuy){
-				for(Map.Entry<Integer, KernelNode> info2 : info.getValue().getRoutingTable().entrySet()){					
-					checkAndAdd(info2, link);
-				}
+			    node.update(iface, info.metric, (byte) 1);
 			}
 		}
 	}

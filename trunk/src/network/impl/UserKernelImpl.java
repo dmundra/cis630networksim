@@ -24,6 +24,7 @@ import network.Message;
 import network.OperatingSystem;
 import network.Process;
 import network.UserKernel;
+import network.protocols.RIP;
 
 public class UserKernelImpl extends AbstractKernel implements UserKernel {
     private volatile ExecutorService executor;
@@ -209,7 +210,7 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
         
         public Message<?> receive(KnownPort port, long timeout, TimeUnit unit)
                 throws InterruptedException {
-            return receive(port.number(), 0, null);
+            return receive(port.number(), timeout, unit);
         }
 
         private BlockingQueue<Message<?>> queue(int port) {
@@ -307,7 +308,7 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
                             try {
                                 send(message.source, KnownPort.KERNEL_WHO,
                                         KnownPort.KERNEL_WHO,
-                                        name());
+                                        RIP.Datagram.notARouter());
                             } catch (DisconnectedException e) {
                                 // We got disconnected after they send the
                                 // WHO message; doesn't matter
@@ -322,9 +323,9 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
             }
         }
 
-		@Override
-		public int address() {
-			return UserKernelImpl.this.address();
-		}
+        @Override
+        public int address() {
+            return UserKernelImpl.this.address();
+        }
     }
 }
