@@ -60,7 +60,7 @@ Our network simulator is useful representation of real world networks and can be
 
 
 ==Project Contributions==
-  *Anthony
-  *Daniel
-  *Kristy
-  *Luke
+  * Anthony
+  * Daniel
+  * Kristy
+  * Luke
