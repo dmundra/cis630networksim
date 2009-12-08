@@ -1,7 +1,6 @@
 package test;
 
 import static org.testng.Assert.assertNotNull;
-import network.AbstractKernel;
 import network.Interface;
 import network.Node;
 import network.Simulator;
@@ -15,15 +14,6 @@ import org.testng.annotations.Test;
  *
  */
 public class SimpleTestRun {
-    private static class TrivialKernel extends AbstractKernel {
-        public void interfaceAdded(Interface iface) { }
-        public void interfaceConnected(Interface iface) { }
-        public void interfaceDisconnected(Interface iface) { }
-        
-        public void start() { }
-        public void shutDown() { }
-    }
-    
     @Test
     public void test1() {
         // Get a simulator

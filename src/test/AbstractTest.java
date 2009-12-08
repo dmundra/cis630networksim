@@ -1,6 +1,7 @@
 package test;
 
 import java.util.logging.Handler;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import network.Simulator;
@@ -20,7 +21,7 @@ public abstract class AbstractTest {
         for (Handler handler : root.getHandlers())
             root.removeHandler(handler);
         root.addHandler(new TestNGLogHandler());
-//        root.setLevel(Level.FINER);
+        Logger.getLogger("network").setLevel(Level.INFO);
     }
     
     private Simulator simulator;

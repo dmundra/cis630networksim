@@ -155,6 +155,10 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
                 logger().fine("Process interrupted");
                 // Do nothing; we're shutting down as expected
             }
+            
+            final ExecutorService executor = UserKernelImpl.this.executor;
+            if (executor != null)
+                executor.shutdownNow();
         }
     }
     
@@ -313,9 +317,8 @@ public class UserKernelImpl extends AbstractKernel implements UserKernel {
                                 // We got disconnected after they send the
                                 // WHO message; doesn't matter
                             }
-                        }
-                        
-                        queue(destPort).add(message);
+                        } else
+                            queue(destPort).add(message);
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
