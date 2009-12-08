@@ -56,7 +56,6 @@ Our network simulator is useful representation of real world networks and can be
 
   After some time, a dies, and a new election is called, to which b wins. After another interval, a new process joins. This process calls an election (with election time 1), to which processes respond (and thus the clock is updated to the current election), but no winner is declared as the victory message is only sent once. The new process realizes there is a conflict when no victory message was sent (and yet it received votes), so it calls a new election with the next election number, to which b is declared a winner.   
 
-  When a new process...
 
 * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java Two Phase Commit] on a simulated DS:
 
@@ -68,7 +67,7 @@ Our network simulator is useful representation of real world networks and can be
 
 
 ==Project Contributions==
-  * Anthony
+  * Anthony: I mostly worked on the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java KernelImpl] and the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/BullyTest.java Bully Test], with a lot of help from the team. 
   * Daniel: I worked on initial project description of simulating a botnet with the rest of the team. Worked with Anthony and Kristy to develop the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/network/impl/kernel/KernelImpl.java KernelImpl] method that manages how routers perform the RIP algorithm and manage message routing. Created the [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java Two Phase Commit] test case and worked with Anthony and Kristy to improve it.
   * Kristy
   * Luke
