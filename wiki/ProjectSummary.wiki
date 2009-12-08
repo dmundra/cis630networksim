@@ -74,9 +74,13 @@ Our network simulator is useful representation of real world networks and can be
 
   Each process has a logical election clock. This clock represents the most current election that the process knows about. When a process calls an election, it increments the clock and begins sending the messages. When an election related message is received, the election clock is checked to see if the message is relevant (i.e. not from an old election). The use of the election clocks enabled us to have multiple processes calling elections concurrently while still arriving at a single result. For example:
 
-  When we start the test, the leader is a dead process, so all process call an election after incrementing their clocks to 1 (the clock starts at 0). So as far as each process is concerned, they started the election, but their action isn't any different than if they received a request for election. So the first election ends with a leader (except in the case that the leader hits the high end of a random sleep, in which case, _b_ is elected temporarily, until _a_ checks and sees that an inferior declared itself winner and starts a new election).
+  When we start the test, the leader is a dead process, so all process call an election after incrementing their clocks to 1 (the clock starts at 0). So as far as each process is concerned, they started the election, but their action isn't any different than if they received a request for election. So the first election ends with a leader (except in the case that the leader hits the high end of a random sleep, in which case, the 'real' leader calls another election). So _b_ eventually becomes the leader (after one or two elections).
 
-  After some time, _a_ dies, and a new election is called, to which _b_ wins. After another interval, a new process joins. This process calls an election (with election time 1), to which processes respond (and thus the clock is updated to the current election). When _b_ receives the message to cast its vote, it also realizes that it has already declared itself the winner to the current election, so it resends the victory message.
+  _a_ then joins the network. _a_ calls an election and declares itself the winner (of election 1). _b_ (the current master, and winner of election 1) sees this, and calls a new election, in which _a_ is again declared winner (this time of election 2) and _b_ becomes a regular slave.
+
+  After some time, _a_ dies, and a new election is called, to which _b_ wins. After another interval, a new process joins. This process calls an election (with election time 1), to which processes respond (and thus the clock is updated to the current election, #3). When _b_ receives the message to cast its vote, it also sees that it has already declared itself the winner to the current election, so it resends the victory message.
+
+  Thus order is restored and the people rejoice. 
 
 * [http://code.google.com/p/cis630networksim/source/browse/trunk/src/test/TokenRingTwoPhaseTest.java Two Phase Commit] on a simulated DS:
 
