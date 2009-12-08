@@ -63,7 +63,10 @@ public interface Interface {
      * @author Luke Maurer
      */
     class DisconnectedException extends Exception {
-        public DisconnectedException() {
+
+		private static final long serialVersionUID = 92874917L;
+
+		public DisconnectedException() {
             this("Interface is disconnected");
         }
         

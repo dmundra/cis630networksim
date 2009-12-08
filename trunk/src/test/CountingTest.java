@@ -14,6 +14,11 @@ import network.Simulator;
 import network.SimulatorFactory;
 import network.Interface.DisconnectedException;
 
+/**
+ * Counting test simulates send and received messages between two nodes.
+ * @author Luke Maurer
+ *
+ */
 public class CountingTest extends AbstractTest {
     final Random random = new Random();
     
